@@ -168,23 +168,44 @@ ui <- argonDashPage(
           argonRow(
             
             argonColumn(
-              width = 6,
+              width = 12,
               argonCard(
                 title = 'Revenue Information',
                 shadow = TRUE,
                 border_level = 1,
                 width = 12,
-                awesomeRadio('priceType', 'Price File', choices = c('Strip', 'Custom'), status = 'primary'),
-                numericInput('wti1', 'Year 1 Oil Price, $/bbl', value = 35, min = 0),
-                numericInput('wti2', 'Year 2 Oil Price, $/bbl', value = 35, min = 0),
-                numericInput('wti3', 'Year 3 Oil Price, $/bbl', value = 35, min = 0),
-                numericInput('wti4', 'Year 4 Oil Price, $/bbl', value = 35, min = 0),
-                numericInput('wti5', 'Year 5 Oil Price, $/bbl', value = 35, min = 0),
-                numericInput('hh1', 'Year 1 Gas Price, $/mcf', value = 2, min = 0),
-                numericInput('hh2', 'Year 2 Gas Price, $/mcf', value = 2, min = 0),
-                numericInput('hh3', 'Year 3 Gas Price, $/mcf', value = 2, min = 0),
-                numericInput('hh4', 'Year 4 Gas Price, $/mcf', value = 2, min = 0),
-                numericInput('hh5', 'Year 5 Gas Price, $/mcf', value = 2, min = 0)
+                argonRow(
+                  argonColumn(
+                    width = 2,
+                    awesomeRadio('priceType', 'Price File', choices = c('Strip', 'Custom'), status = 'primary')
+                  ),
+                  argonColumn(
+                    width = 5,
+                    numericInput('wti1', 'Year 1 Oil Price, $/bbl', value = 35, min = 0),
+                    numericInput('wti2', 'Year 2 Oil Price, $/bbl', value = 35, min = 0),
+                    numericInput('wti3', 'Year 3 Oil Price, $/bbl', value = 35, min = 0),
+                    numericInput('wti4', 'Year 4 Oil Price, $/bbl', value = 35, min = 0),
+                    numericInput('wti5', 'Year 5 Oil Price, $/bbl', value = 35, min = 0),
+                    numericInput('wti6', 'Year 6 Oil Price, $/bbl', value = 35, min = 0),
+                    numericInput('wti7', 'Year 7 Oil Price, $/bbl', value = 35, min = 0),
+                    numericInput('wti8', 'Year 8 Oil Price, $/bbl', value = 35, min = 0),
+                    numericInput('wti9', 'Year 9 Oil Price, $/bbl', value = 35, min = 0),
+                    numericInput('wti10', 'Year 10 Oil Price, $/bbl', value = 35, min = 0)
+                    ),
+                  argonColumn(
+                    width = 5,
+                    numericInput('hh1', 'Year 1 Gas Price, $/mcf', value = 2, min = 0),
+                    numericInput('hh2', 'Year 2 Gas Price, $/mcf', value = 2, min = 0),
+                    numericInput('hh3', 'Year 3 Gas Price, $/mcf', value = 2, min = 0),
+                    numericInput('hh4', 'Year 4 Gas Price, $/mcf', value = 2, min = 0),
+                    numericInput('hh5', 'Year 5 Gas Price, $/mcf', value = 2, min = 0),
+                    numericInput('hh6', 'Year 6 Gas Price, $/mcf', value = 2, min = 0),
+                    numericInput('hh7', 'Year 7 Gas Price, $/mcf', value = 2, min = 0),
+                    numericInput('hh8', 'Year 8 Gas Price, $/mcf', value = 2, min = 0),
+                    numericInput('hh9', 'Year 9 Gas Price, $/mcf', value = 2, min = 0),
+                    numericInput('hh10', 'Year 10 Gas Price, $/mcf', value = 2, min = 0)
+                  )
+              )
               )
             ),
             argonColumn(
@@ -1223,6 +1244,16 @@ server <- function(input, output, session) {
       shinyjs::hide('hh4')
       shinyjs::hide('wti5')
       shinyjs::hide('hh5')
+      shinyjs::hide('wti6')
+      shinyjs::hide('hh6')
+      shinyjs::hide('wti7')
+      shinyjs::hide('hh7')
+      shinyjs::hide('wti8')
+      shinyjs::hide('hh8')
+      shinyjs::hide('wti9')
+      shinyjs::hide('hh9')
+      shinyjs::hide('wti10')
+      shinyjs::hide('hh10')
 
       crude <-'https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx?n=PET&s=RWTC&f=M'
       webpage <- read_html(crude)
@@ -1349,6 +1380,16 @@ server <- function(input, output, session) {
       shinyjs::show('hh4')
       shinyjs::show('wti5')
       shinyjs::show('hh5')
+      shinyjs::show('wti6')
+      shinyjs::show('hh6')
+      shinyjs::show('wti7')
+      shinyjs::show('hh7')
+      shinyjs::show('wti8')
+      shinyjs::show('hh8')
+      shinyjs::show('wti9')
+      shinyjs::show('hh9')
+      shinyjs::show('wti10')
+      shinyjs::show('hh10')
 
       crude <-'https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx?n=PET&s=RWTC&f=M'
       webpage <- read_html(crude)
@@ -1385,16 +1426,26 @@ server <- function(input, output, session) {
       df <- left_join(wti1, hh1)
       df1 <- data.frame(months = seq(1, 80*12, 1), DATE = max(df$DATE), WTI = NA, HH = NA)
       df1 <- df1 %>% mutate(DATE = DATE %m+% months(months))
-      df1$WTI[1:12] <- input$wti1
-      df1$WTI[13:24] <- input$wti2
-      df1$WTI[25:36] <- input$wti3
-      df1$WTI[37:48] <- input$wti4
-      df1$WTI[48:nrow(df1)] <- input$wti5
-      df1$HH[1:12] <- input$hh1
-      df1$HH[13:24] <- input$hh2
-      df1$HH[25:36] <- input$hh3
-      df1$HH[37:48] <- input$hh4
-      df1$HH[48:nrow(df1)] <- input$hh5
+      df1$WTI[year(df1$DATE) == 2020] <- priceValues()$wti1
+      df1$WTI[year(df1$DATE) == 2021] <- priceValues()$wti2
+      df1$WTI[year(df1$DATE) == 2022] <- priceValues()$wti3
+      df1$WTI[year(df1$DATE) == 2023] <- priceValues()$wti4
+      df1$WTI[year(df1$DATE) == 2024] <- priceValues()$wti5
+      df1$WTI[year(df1$DATE) == 2025] <- priceValues()$wti6
+      df1$WTI[year(df1$DATE) == 2026] <- priceValues()$wti7
+      df1$WTI[year(df1$DATE) == 2027] <- priceValues()$wti8
+      df1$WTI[year(df1$DATE) == 2028] <- priceValues()$wti9
+      df1$WTI[year(df1$DATE) >= 2029] <- priceValues()$wti10
+      df1$HH[year(df1$DATE) == 2020] <- priceValues()$hh1
+      df1$HH[year(df1$DATE) == 2021] <- priceValues()$hh2
+      df1$HH[year(df1$DATE) == 2022] <- priceValues()$hh3
+      df1$HH[year(df1$DATE) == 2023] <- priceValues()$hh4
+      df1$HH[year(df1$DATE) == 2024] <- priceValues()$hh5
+      df1$HH[year(df1$DATE) == 2025] <- priceValues()$hh6
+      df1$HH[year(df1$DATE) == 2026] <- priceValues()$hh7
+      df1$HH[year(df1$DATE) == 2027] <- priceValues()$hh8
+      df1$HH[year(df1$DATE) == 2028] <- priceValues()$hh9
+      df1$HH[year(df1$DATE) >= 2029] <- priceValues()$hh10
       df1 <- subset(df1, select = -c(months))
       df <- rbind(df, df1)
       df <- df %>% filter(year(DATE) >= 2015)
@@ -1403,6 +1454,20 @@ server <- function(input, output, session) {
     }
   })
 
+  priceValues <- reactive({
+    data.frame(
+      Component = c('wti1', 'wti2',  'wti3', 'wti4', 'wti5',
+                    'wti6', 'wti7', 'wti8', 'wti9', 'wti10',
+                    'hh1', 'hh2',  'hh3', 'hh4', 'hh5',
+                    'hh6', 'hh7', 'hh8', 'hh9', 'hh10'),
+      
+      Value = c(input$wti1, input$wti2, input$wti3, input$wti4, input$wti5,
+                input$wti6, input$wti7, input$wti8, input$wti9, input$wti10,
+                input$hh1, input$hh2, input$hh3, input$hh4, input$hh5,
+                input$hh6, input$hh7, input$hh8, input$hh9, input$hh10),
+      stringsAsFactors = FALSE) %>% spread(Component, Value)
+    
+  })
 
   output$prices <- renderHighchart({
     if(is.null(values$price)){
