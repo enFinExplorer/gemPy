@@ -724,7 +724,7 @@ ui <- argonDashPage(
                     width = 6,
                     pickerInput('operatorSelect',label = 'Select Operator(s)', choices = sort(unique(opList$operator)), 
                                 multiple = TRUE),
-                    pickerInput('selectYr', label = 'Select Year(s)', choices = '2019',  multiple = TRUE),
+                    pickerInput('selectYr', label = 'Select Year(s)', choices = '',  multiple = TRUE),
                     selectizeInput('productSelect1', 'Selected Product', choices = c('Oil', 'Gas'), multiple = FALSE),
                     numericInput('cutoff1', 'IRR Cutoff, %', value = 20, min = 0),
                     
@@ -2991,15 +2991,34 @@ server <- function(input, output, session) {
                          y
       )
       
-      df1 <- df() %>% filter(subPlay %in% input$subPlay1)
-      updatePickerInput(session, 'selectYr',  choices = sort(unique(as.character(df1$fp.year))), selected = sort(unique(as.character(df1$fp.year)))[1])
-      updatePickerInput(session, 'operatorSelect',  choices = sort(unique(df1$operator)), selected  = sort(unique(df1$operator))[1])
-      
+     
     }
     
     
     
     
+  })
+  
+  observeEvent(input$subPlay1, {
+    if(is.null(input$subPlay1)||input$subPlay1 == ''){
+      
+      NULL
+    } else {
+      df1 <- df() %>% filter(subPlay %in% input$subPlay1)
+      updatePickerInput(session, 'selectYr',  choices = sort(unique(as.character(df1$fp.year))), selected = sort(unique(as.character(df1$fp.year)))[1])
+      updatePickerInput(session, 'operatorSelect',  choices = sort(unique(df1$operator)), selected  = sort(unique(df1$operator))[1])
+    }
+  })
+  
+  observeEvent(input$selectYr, {
+    if(is.null(input$subPlay1)||input$subPlay1 == ''||is.null(input$selectYr)||input$selectYr == ''){
+
+      NULL
+    } else {
+      df1 <- df() %>% filter(subPlay %in% input$subPlay1) %>% filter(as.character(fp.year) %in% (input$selectYr))
+      #updatePickerInput(session, 'selectYr',  choices = sort(unique(as.character(df1$fp.year))), selected = sort(unique(as.character(df1$fp.year)))[1])
+      updatePickerInput(session, 'operatorSelect',  choices = sort(unique(df1$operator)), selected  = sort(unique(df1$operator))[1])
+    }
   })
   
   output$capexCalcs <- render_tableHTML({
@@ -3346,7 +3365,7 @@ server <- function(input, output, session) {
   )
   
   observe({
-    if(is.null(input$subPlay1)){
+    if(is.null(input$subPlay1)||input$subPlay1 == ''||nrow(prodData1())==0){
       NULL
     } else {
 
@@ -3356,12 +3375,14 @@ server <- function(input, output, session) {
         df <- as.data.frame(df()) %>%
           filter(subPlay %in% input$subPlay1) %>%
           filter(operator %in% input$operatorSelect) %>%
-          filter(operator != 'OTHER') %>% filter(fp.year %in% as.numeric(input$selectYr))
+          filter(as.character(fp.year) %in% input$selectYr)
 
-
-
+        print(head(df))
+      
         prod.data <- prodData1() %>% arrange(API, date) %>% filter(API %in% df$API)# %>% group_by(API) %>% mutate(month = cumsum(API/API))
         prod.data <- merge(prod.data, df[,c('API', 'perf', 'fp.year')], by='API', all.x=TRUE)
+        
+        print(head(prod.data))
         #print(head(prod.data))
         if(nrow(prod.data) == 0){
           NULL
@@ -3380,6 +3401,30 @@ server <- function(input, output, session) {
             prod.data <- prod.data %>% filter(oil > 0) %>% filter(!is.na(perf)) %>%
               mutate(oil = oil/perf*as.numeric(capexValues1()$perfSelect)) %>%
               group_by(API) %>% mutate(month=cumsum(API/API)) %>% ungroup()
+            if(nrow(prod.data)==0){
+              prod.data <- data.frame(fp.year = 2008, month = 1, oil = 0)
+              cols <- c(  '#008542', '#ff4e50', '#5c6d00','#00a4e3', '#adafb2','#0D1540','#06357a',  '#a31c37', '#d26400', '#eaa814',
+                          '#5c1848', '#786592', '#027971')
+              
+              
+              
+              p <- hchart(prod.data[,c('fp.year', 'month', 'oil')], type = 'line', hcaes(x = 'month', y='oil', group = 'fp.year')) %>%
+                #hc_add_series(data = df$WTI, type = 'line') %>%
+                #hc_add_series(data = meanProd[,c('month', 'oil')], type = 'line', hcaes(x = 'month', y='oil'),name = 'Mean') %>%
+                hc_title(
+                  text = "Oil Spaghetti Plot - Lateral Length Normalized",
+                  useHTML = FALSE) %>%
+                hc_subtitle(text = '<a href="www.woodmac.com">Source: Wood Mackenzie Lens Direct</a>', useHTML=TRUE, align = 'right') %>%
+                #hc_tooltip(table = TRUE, sort = TRUE) %>%
+                hc_xAxis(title = list(text = '<b>Months Producing</b>')) %>%
+                hc_yAxis(title = list(text = '<b>Average Production: BBL/D</b>')) %>%
+                hc_credits(
+                  enabled = TRUE,
+                  text = "Powered by Highcharts",
+                  href = "https://www.highcharts.com/") %>%
+                hc_colors(cols)
+            } else {
+              
             prod.data <- prod.data[,c('API', 'fp.year', 'month', 'oil')]
             values$life <- max(prod.data$month)
             meanProd <- prod.data %>% group_by(month) %>% summarise(oil = mean(oil, na.rm=TRUE)/30.45, count=n()) %>% ungroup()
@@ -3389,20 +3434,7 @@ server <- function(input, output, session) {
             cols <- c(  '#008542', '#ff4e50', '#5c6d00','#00a4e3', '#adafb2','#0D1540','#06357a',  '#a31c37', '#d26400', '#eaa814',
                         '#5c1848', '#786592', '#027971')
 
-            # hchart(df, type = 'line',
-            #           hcaes(x = as.Date(DATE), y = Price, group = Fluid))%>%
-            #   hc_title(
-            #     text = "Srip Pricing",
-            #     useHTML = FALSE) %>%
-            #   hc_subtitle(text = '<a href="www.wsj.com">Source: Wall Street Journal</a>', useHTML=TRUE, align = 'right') %>%
-            #   #hc_tooltip(table = TRUE, sort = TRUE) %>%
-            #   hc_xAxis(title = list(text = '<b>DATE</b>')) %>%
-            #   hc_yAxis(title = list(text = '<b>$/BBL</b>')) %>%
-            #   hc_credits(
-            #     enabled = TRUE,
-            #     text = "Powered by Highcharts",
-            #     href = "https://www.highcharts.com/") %>%
-            #   hc_colors(cols)
+           
 
             p <- hchart(prod.data[,c('fp.year', 'month', 'oil')], type = 'line', hcaes(x = 'month', y='oil', group = 'fp.year')) %>%
               #hc_add_series(data = df$WTI, type = 'line') %>%
@@ -3419,11 +3451,9 @@ server <- function(input, output, session) {
                 text = "Powered by Highcharts",
                 href = "https://www.highcharts.com/") %>%
               hc_colors(cols)
+            }
 
-            # p <- plot_ly(prod.data, x=~month, y=~oil/30.45, group=~as.factor(API), color=I('gray'), type='scatter', mode='lines', name='Actuals')%>%
-            #   #add_trace(data = fitOil, x=~month, y=~oilFCST/30.45, color=I('green'), name = 'Forecast', type='scatter', mode='lines') %>%
-            #   add_trace(data = meanProd, x=~month, y=~oil/30.45, color=I('black'), name = 'Average', type='scatter', mode='lines')#%>%
-            # #layout(title = title, yaxis = list(title='Daily Oil Rate, bopd', type='log'), xaxis=  list(title = 'Month'))
+           
           } else {
             shinyjs::show('qiGasS')
             shinyjs::show('DiGasS')
@@ -3438,26 +3468,46 @@ server <- function(input, output, session) {
             prod.data <- prod.data %>% filter(gas > 0) %>% filter(!is.na(perf)) %>%
               mutate(gas = gas/perf*as.numeric(capexValues1()$perfSelect)) %>%
               group_by(API) %>% mutate(month=cumsum(API/API)) %>% ungroup()
-            prod.data <- prod.data[,c('API', 'fp.year', 'month', 'gas')]
-            values$life <- max(prod.data$month)
-
-            meanProd <- prod.data %>% group_by(month) %>% summarise(gas = mean(gas, na.rm=TRUE)/30.45, count=n())# %>%
-            prod.data <- prod.data %>% group_by(fp.year, month) %>% summarise(gas = mean(gas, na.rm=TRUE)/30.45) %>% ungroup()
-            #filter(count >= max(count)*0.4)
-            cols <- c(  '#008542', '#ff4e50', '#5c6d00','#00a4e3', '#adafb2','#0D1540','#06357a',  '#a31c37', '#d26400', '#eaa814',
-                        '#5c1848', '#786592', '#027971')
-            p <- hchart(prod.data[,c('fp.year', 'month', 'gas')], type = 'line', hcaes(x = 'month', y='gas', group = 'fp.year')) %>%
-              #hc_add_series(data = df$WTI, type = 'line') %>%
-              hc_add_series(data = meanProd[,c('month', 'gas')], type = 'line', hcaes(x = 'month', y='gas'),name = 'Mean') %>%
-              hc_subtitle(text = '<a href="www.woodmac.com">Source: Wood Mackenzie Lens Direct</a>', useHTML=TRUE, align = 'right') %>%
-              #hc_tooltip(table = TRUE, sort = TRUE) %>%
-              hc_xAxis(title = list(text = '<b>Months Producing</b>')) %>%
-              hc_yAxis(title = list(text = '<b>Average Production: MCF/D</b>')) %>%
-              hc_credits(
-                enabled = TRUE,
-                text = "Powered by Highcharts",
-                href = "https://www.highcharts.com/") %>%
-              hc_colors(cols)
+            if(nrow(prod.data)==0){
+              prod.data <- data.frame(fp.year = 2008, month = 1, gas = 0)
+              cols <- c(  '#008542', '#ff4e50', '#5c6d00','#00a4e3', '#adafb2','#0D1540','#06357a',  '#a31c37', '#d26400', '#eaa814',
+                          '#5c1848', '#786592', '#027971')
+              p <- hchart(prod.data[,c('fp.year', 'month', 'gas')], type = 'line', hcaes(x = 'month', y='gas', group = 'fp.year')) %>%
+                #hc_add_series(data = df$WTI, type = 'line') %>%
+                #hc_add_series(data = meanProd[,c('month', 'gas')], type = 'line', hcaes(x = 'month', y='gas'),name = 'Mean') %>%
+                hc_subtitle(text = '<a href="www.woodmac.com">Source: Wood Mackenzie Lens Direct</a>', useHTML=TRUE, align = 'right') %>%
+                #hc_tooltip(table = TRUE, sort = TRUE) %>%
+                hc_xAxis(title = list(text = '<b>Months Producing</b>')) %>%
+                hc_yAxis(title = list(text = '<b>Average Production: MCF/D</b>')) %>%
+                hc_credits(
+                  enabled = TRUE,
+                  text = "Powered by Highcharts",
+                  href = "https://www.highcharts.com/") %>%
+                hc_colors(cols)
+            } else {
+            
+            
+              prod.data <- prod.data[,c('API', 'fp.year', 'month', 'gas')]
+              values$life <- max(prod.data$month)
+  
+              meanProd <- prod.data %>% group_by(month) %>% summarise(gas = mean(gas, na.rm=TRUE)/30.45, count=n())# %>%
+              prod.data <- prod.data %>% group_by(fp.year, month) %>% summarise(gas = mean(gas, na.rm=TRUE)/30.45) %>% ungroup()
+              #filter(count >= max(count)*0.4)
+              cols <- c(  '#008542', '#ff4e50', '#5c6d00','#00a4e3', '#adafb2','#0D1540','#06357a',  '#a31c37', '#d26400', '#eaa814',
+                          '#5c1848', '#786592', '#027971')
+              p <- hchart(prod.data[,c('fp.year', 'month', 'gas')], type = 'line', hcaes(x = 'month', y='gas', group = 'fp.year')) %>%
+                #hc_add_series(data = df$WTI, type = 'line') %>%
+                hc_add_series(data = meanProd[,c('month', 'gas')], type = 'line', hcaes(x = 'month', y='gas'),name = 'Mean') %>%
+                hc_subtitle(text = '<a href="www.woodmac.com">Source: Wood Mackenzie Lens Direct</a>', useHTML=TRUE, align = 'right') %>%
+                #hc_tooltip(table = TRUE, sort = TRUE) %>%
+                hc_xAxis(title = list(text = '<b>Months Producing</b>')) %>%
+                hc_yAxis(title = list(text = '<b>Average Production: MCF/D</b>')) %>%
+                hc_credits(
+                  enabled = TRUE,
+                  text = "Powered by Highcharts",
+                  href = "https://www.highcharts.com/") %>%
+                hc_colors(cols)
+          }
             # p <- plot_ly(prod.data, x=~month, y=~gas/30.45, group=~as.factor(API), color=I('gray'), type='scatter', mode='lines', name='Actuals') %>%
             #   #add_trace(data = fitGas, x=~month, y=~gasFCST/30.45, color=I('red'), name = 'Forecast', type='scatter', mode='lines')%>%
             #   add_trace(data = meanProd, x=~month, y=~gas/30.45, color=I('black'), name = 'Average', type='scatter', mode='lines')#%>%
