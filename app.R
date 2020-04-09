@@ -31,6 +31,7 @@ wellData <- readRDS('./data/assetSummary.rds')
 costData <- readRDS('./data/costData.rds')
 prodData <- readRDS('./data/prodData.rds')
 propUplift <- readRDS('./data/propUplift.rds')
+acreageGEM <- readRDS('./data/acreageGEM.rds')
 
 
 perfRisk <- data.frame(perf = c(0, 2500, 5000, 7500, 10000, 12500, 15000), risk = c(0, 0.55, 1, 1.45, 1.85, 2.2, 2.5))
@@ -243,7 +244,8 @@ ui <- argonDashPage(
                   border_level = 1,
                   width = 12,
                   numericInput('wells', 'Net Remaining Wells',value = 100, min = 0),
-                  numericInput('nri', 'Net Revenue Interest, %', value = 75, min = 0)
+                  numericInput('nri', 'Net Revenue Interest, %', value = 75, min = 0),
+                  textOutput('acreageGEM')
                 )
                 
               ),
@@ -1005,7 +1007,17 @@ server <- function(input, output, session) {
     updateButton(session, 'add', label = 'Add To Development Program')
   })
   
-
+  output$acreageGEM <- renderText({
+    df1 <- acreageGEM %>% filter(operator %in% input$operator) %>% filter(id %in% input$subPlayList)
+    if(nrow(df1)==0){
+      NULL
+    } else {
+      paste0('GEM Net Acreage: ', df1$acreage)
+    }
+  }
+    
+  )
+  
   observe({
     if(is.null(values$pdpList)||nrow(values$pdpList)==0||is.null(values$price)){
       NULL
@@ -1109,7 +1121,7 @@ server <- function(input, output, session) {
         e
         NULL
       }))
-
+      #print('1124')
       values$pdpFcst <- dplyr::bind_rows(subPlay)
 
     }
@@ -1588,7 +1600,7 @@ server <- function(input, output, session) {
     #print(head(df))
     #values$oilEUR <- as.integer(sum(df$Oil)/1000)
     #values$gasEUR <- as.integer(sum(df$Gas)/1000)
-
+    #print(head(df))
     values$fcst <- df
     df <- as.data.frame(df)
     df$Oil <- df$Oil/30.45
@@ -1613,7 +1625,7 @@ server <- function(input, output, session) {
       hc_add_series(df, type = 'line',
                     hcaes(x=Months, y = Gas), name = 'Gas', yAxis = 1) %>%
       hc_title(text = 'Type Curve Forecast', align = 'left') %>%
-      hc_subtitle(text = paste0('<i>','Oil EUR (mbo): ',input$oilEUR,' Gas EUR (mmcf): ', input$gasEUR, '</i>'), align = 'left') %>%
+      #hc_subtitle(text = paste0('<i>','Oil EUR (mbo): ',input$oilEUR,' Gas EUR (mmcf): ', input$gasEUR, '</i>'), align = 'left') %>%
       hc_credits(enabled = TRUE, text = "Wood Mackenzie", src = "http://www.woodmac.com")
 
 
@@ -1628,17 +1640,24 @@ server <- function(input, output, session) {
     } else {
 
       df <- values$fcst
+      #print(head(df))
+      #print('1644')
       df$Date <- paste0(year(today()), '-1-', month(today()))
-
+      #print(head(df))
+      #print('1647')
       df$Date <- as.POSIXct(df$Date, format = '%Y-%d-%m')
       #print(head(df))
+      #print(expenseValues()$spudToProd)
+      df$Months <- seq(1, nrow(df), 1)
       df$Date <- df$Date %m+% months(df$Months + expenseValues()$spudToProd)
+      #print(head(df))
       price <- values$price
       price$Date <- paste0(year(price$DATE), '-01-', month(price$DATE))
       price$Date <- as.POSIXct(price$Date, format = '%Y-%d-%m')
       df <- left_join(df, price[,c('Date', 'WTI', 'HH')])
       df$WTI <- na.locf(df$WTI)
       df$HH <- na.locf(df$HH)
+      
       df$NGL <- df$Gas*expenseValues()$nglYield/1000
       df$SalesGas <- df$Gas * expenseValues()$shrink/100
       df$OilRevenue <- (df$Oil *(df$WTI-expenseValues()$oilDiff))* expenseValues()$nri/100
@@ -1653,8 +1672,9 @@ server <- function(input, output, session) {
 
       df$NOCF <- df$Revenue - df$expense - df$tax
       df$capex <- 0
-
+      
       df <- df %>% arrange(desc(Date))
+      print('1670')
       min1 <- which(df$NOCF >0)
       min1 <- min1[1]
       if(is.na(min1)){
@@ -1746,6 +1766,7 @@ server <- function(input, output, session) {
       df$capex <- 0
 
       df <- df %>% arrange(desc(Date))
+      print('1762')
       min1 <- which(df$NOCF >0)
       min1 <- min1[1]
       if(is.na(min1)){
