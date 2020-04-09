@@ -520,34 +520,44 @@ ui <- argonDashPage(
         ),
         argonTabItem(
           tabName = 'evaluator',
+          argonH1(display = 3, 'Remaining Inventory Estimator'),
           argonRow(
             
             
             argonColumn(
               width = 4,
-              pickerInput('operator1', label = 'Operator', choices = sort(unique(opList$operator)))
+              pickerInput('operator1', label = 'Operator', choices = sort(unique(opList$operator))),
+              pickerInput('plays', 'Active Areas',choices =  sort(unique(opList$id)))
             ),
             argonColumn(
-              width = 4,
-              pickerInput('plays', 'Active Areas',choices =  sort(unique(opList$id)))
+              width = 8,
+              highchartOutput('acres_plot')
          
             )
           ),
+          # argonRow(
+          #   
+          # ), 
+          argonH1(display = 3, 'SubPlay Info'),
           argonRow(
-            highchartOutput('acres_plot')
-          ), 
-          
-          argonRow(
+            
             
             
             argonColumn(
               width = 6,
-              radioButtons('subPlay1', label = 'Active Sub-Plays', choices = ''),
-              br(),
-              highchartOutput('percentDev')
+              radioButtons('subPlay1', label = 'Active Sub-Plays', choices = '')
             ),
             argonColumn(
               width = 6,
+              highchartOutput('percentDev')
+            )
+          ),
+          argonRow(
+            highchartOutput('offsets_plot')
+          ),
+          argonRow(
+            argonColumn(
+              width = 12,
               argonCard(
                 title = 'Sub-Play Assumtions',
                 shadow = TRUE,
@@ -596,19 +606,10 @@ ui <- argonDashPage(
               
             )
           ),
-          argonRow(
-            highchartOutput('offsets_plot')
-          ),
+          
           argonRow(
             argonColumn(
-              width = 6,
-              selectizeInput('wellFactor', '', choices = c('perf', 'ppf', 'fpf'), selected = 'perf'),
-              highchartOutput('wellDesign'),
-              br(),
-              highchartOutput('costPerFt')
-            ),
-            argonColumn(
-              width = 6,
+              width = 12,
               argonCard(
                 title = 'Well Design',
                 shadow = TRUE,
@@ -618,16 +619,19 @@ ui <- argonDashPage(
                   
                   
                   argonColumn(width = 4,
-                                  numericInput('perfSelect1', 'Average Lateral Length, ft', value = 7500)),
+                              numericInput('perfSelect1', 'Average Lateral Length, ft', value = 7500)),
                   
                   argonColumn(width =4,
-                                  numericInput('ppfSelect1', 'Proppant Loading, lb/ft', value = 2000)),
+                              numericInput('ppfSelect1', 'Proppant Loading, lb/ft', value = 2000)),
                   
                   argonColumn(width =4,
-                                  numericInput('fpfSelect1', 'Fluid Loading, gal/ft', value = 2000))
+                              numericInput('fpfSelect1', 'Fluid Loading, gal/ft', value = 2000))
                   
                 )
               ),
+              selectizeInput('wellFactor', '', choices = c('perf', 'ppf', 'fpf'), selected = 'perf'),
+              highchartOutput('wellDesign'),
+              br(),
               argonCard(
                 title = 'Capex Calculator (Cost CoE)',
                 shadow = TRUE,
@@ -637,52 +641,54 @@ ui <- argonDashPage(
                   tableHTML_output('capexCalcs')),
                 argonRow(
                   argonColumn(width = 3,
-                                  numericInput('capexStressor1', 'Capex Stress', value = 1, min = 0.1))
+                              numericInput('capexStressor1', 'Capex Stress', value = 1, min = 0.1))
                 ),
                 argonRow(
                   
                   
                   argonColumn(width = 4,
-                                  numericInput('tvdSelect1', 'TVD', value = 7500, min = 1000, max = 20000),
-                                  numericInput('proppantPerStage1', 'Proppant Per Stage', value = 440000, min = 1),
-                                  numericInput('drillingFuelPerDay1', 'Drilling Fuel, $/Day', value = 4000, min = 1)),
+                              numericInput('tvdSelect1', 'TVD', value = 7500, min = 1000, max = 20000),
+                              numericInput('proppantPerStage1', 'Proppant Per Stage', value = 440000, min = 1),
+                              numericInput('drillingFuelPerDay1', 'Drilling Fuel, $/Day', value = 4000, min = 1)),
                   argonColumn(width =4,
-                                  numericInput('drillSpeed1', 'Drill Speed, ft/day', value = 100, min = 1),
-                                  numericInput('padConstruction1', 'Pad Construction Per Well', value = 180000, min = 1),
-                                  numericInput('ancDrillPerDay1', 'Ancillary Drill Services, $/Day', value = 50000, min = 1)),
+                              numericInput('drillSpeed1', 'Drill Speed, ft/day', value = 100, min = 1),
+                              numericInput('padConstruction1', 'Pad Construction Per Well', value = 180000, min = 1),
+                              numericInput('ancDrillPerDay1', 'Ancillary Drill Services, $/Day', value = 50000, min = 1)),
                   argonColumn(width =4,
-                                  numericInput('stagesPerDay1', 'Frac Stages per Day', value = 10, min = 1),
-                                  numericInput('drillingFluidsPerDay1', 'Drilling Fluids, $/Day', value = 4100, min = 1),
-                                  numericInput('chemsPerStage1', 'Chemical Cost, $/Stage', value = 6500, min = 1))
+                              numericInput('stagesPerDay1', 'Frac Stages per Day', value = 10, min = 1),
+                              numericInput('drillingFluidsPerDay1', 'Drilling Fluids, $/Day', value = 4100, min = 1),
+                              numericInput('chemsPerStage1', 'Chemical Cost, $/Stage', value = 6500, min = 1))
                 ),
                 
                 argonRow(
                   
                   argonColumn(width = 6,
-                                  numericInput('pumpFuel1', 'Pumping Fuel, $/Stage', value = 5000, min = 1)),
+                              numericInput('pumpFuel1', 'Pumping Fuel, $/Stage', value = 5000, min = 1)),
                   argonColumn(width = 6,
-                                  numericInput('ancCompPerDay1', 'Ancillary Completion Services, $/Day', value = 50000, min = 1))
+                              numericInput('ancCompPerDay1', 'Ancillary Completion Services, $/Day', value = 50000, min = 1))
                 ),
                 h6('Sand Fractions: Should Add to 1'),
                 argonRow(
                   
                   argonColumn(width = 3,
-                                  numericInput('brownSelect1', 'Brown Sand', value = 1, min = 0, max = 1)),
+                              numericInput('brownSelect1', 'Brown Sand', value = 1, min = 0, max = 1)),
                   argonColumn(width = 3,
-                                  numericInput('ceramicSelect1', 'Ceramic', value = 0, min = 0, max = 1)),
+                              numericInput('ceramicSelect1', 'Ceramic', value = 0, min = 0, max = 1)),
                   argonColumn(width = 3,
-                                  numericInput('rcsSelect1', 'Resin-Coated', value = 0, min = 0, max= 1)),
+                              numericInput('rcsSelect1', 'Resin-Coated', value = 0, min = 0, max= 1)),
                   argonColumn(width = 3,
-                                  numericInput('northernSelect1', 'Northern White', value = 0, min = 0, max = 1))
+                              numericInput('northernSelect1', 'Northern White', value = 0, min = 0, max = 1))
                 )
               )
+            ),
+            argonColumn(
+              width = 12,
+              
+              highchartOutput('costPerFt')
             )
+            
           ),
           argonRow(
-            argonColumn(
-              width = 6,
-              highchartOutput('spPlot1')
-            ),
             argonColumn(
               width = 6,
               argonCard(
@@ -694,7 +700,7 @@ ui <- argonDashPage(
                   argonColumn(
                     width = 6,
                     pickerInput('operatorSelect',label = 'Select Operator(s)', choices = sort(unique(opList$operator)), 
-                                      multiple = TRUE),
+                                multiple = TRUE),
                     pickerInput('selectYr', label = 'Select Year(s)', choices = '2019',  multiple = TRUE),
                     selectizeInput('productSelect1', 'Selected Product', choices = c('Oil', 'Gas'), multiple = FALSE),
                     numericInput('cutoff1', 'IRR Cutoff, %', value = 20, min = 0),
@@ -738,7 +744,12 @@ ui <- argonDashPage(
                   
                 )
               )
+            ),
+            argonColumn(
+              width = 6,
+              highchartOutput('spPlot1')
             )
+            
           ),
           argonRow(
             argonColumn(
