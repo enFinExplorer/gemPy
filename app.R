@@ -76,6 +76,30 @@ IRRcalc <- function(cf, months){
   return(IRR1)
 }
 
+
+
+css <- HTML(
+  "#allTable > .dataTables_wrapper.no-footer > .dataTables_scroll > .dataTables_scrollBody {
+        transform:rotateX(180deg);
+    }
+    #allTable > .dataTables_wrapper.no-footer > .dataTables_scroll > .dataTables_scrollBody table{
+        transform:rotateX(180deg);
+    }
+  #devTable > .dataTables_wrapper.no-footer > .dataTables_scroll > .dataTables_scrollBody {
+        transform:rotateX(180deg);
+    }
+    #devTable > .dataTables_wrapper.no-footer > .dataTables_scroll > .dataTables_scrollBody table{
+        transform:rotateX(180deg);
+    }
+  #pdpTable > .dataTables_wrapper.no-footer > .dataTables_scroll > .dataTables_scrollBody {
+        transform:rotateX(180deg);
+    }
+    #pdpTable > .dataTables_wrapper.no-footer > .dataTables_scroll > .dataTables_scrollBody table{
+        transform:rotateX(180deg);
+    }"
+)
+
+
 ui <- argonDashPage(
   header = argonDashHeader(
     gradient = FALSE,
@@ -167,9 +191,13 @@ ui <- argonDashPage(
         argonTabItem(
           tabName = 'price',
           argonRow(
-            
+            tags$style("[type = 'number'] {font-size:12px;height:14px;}"),
+            tags$style(HTML(
+              "label { font-size:90%; font-family:Arial; margin-bottom: 
+              5px; }"
+            )),
             argonColumn(
-              width = 12,
+              width = 5,
               argonCard(
                 title = 'Revenue Information',
                 shadow = TRUE,
@@ -210,7 +238,7 @@ ui <- argonDashPage(
               )
             ),
             argonColumn(
-              width = 12,
+              width = 7,
               highchartOutput('prices')
             )
             
@@ -259,6 +287,7 @@ ui <- argonDashPage(
                 border_level = 1,
                 width = 12,
                 #closable = TRUE,
+                
                 numericInput('oilEUR', 'Oil EUR/Well, mbbls', value = 100, min = 0, max = 10000),
                 numericInput('curtailOil', 'Oil Curtailment, Months', value = 1, min = 0),
                 numericInput('qiOil', 'Oil IP-30, bbl/d', value = 100, min = 0),
@@ -367,6 +396,7 @@ ui <- argonDashPage(
         
         argonTabItem(
           tabName = 'pdp',
+          tags$head(tags$style(css)),
           #shinyWidgets::awesomeRadio('subPlayList', 'Active SubPlays', choices = '', status = 'primary'),
           argonRow(
             argonColumn(
@@ -443,6 +473,7 @@ ui <- argonDashPage(
         
         argonTabItem(
           tabName = 'schedule',
+          tags$head(tags$style(css)),
           argonRow(
             argonColumn(
               width = 6,
@@ -483,7 +514,11 @@ ui <- argonDashPage(
                     textOutput('remInv5'),
                     br(),
                     numericInput('drill2027', '2027', value = 0, min = 0),
-                    textOutput('remInv8')
+                    textOutput('remInv8'),
+                    br(),
+                    br(),
+                    
+                    bsButton('addFcst', 'Load Forecast', style = 'primary', size = 'small')
                     
                   ),
                   argonColumn(
@@ -500,11 +535,6 @@ ui <- argonDashPage(
                   )
                   
                 )
-              ),
-              
-              br(),
-              argonRow(
-                bsButton('addFcst', 'Load Forecast', style = 'primary', size = 'small')
               )
               )
             ),
@@ -526,6 +556,7 @@ ui <- argonDashPage(
             ),
         argonTabItem(
           tabName = 'total',
+          tags$head(tags$style(css)),
           argonRow(
             selectizeInput('selectedAll', 'Graph Item', 
                            choices = c('Oil', 'Gas', 'NGL',
@@ -685,9 +716,9 @@ ui <- argonDashPage(
                 
                 argonRow(
                   
-                  argonColumn(width = 6,
+                  argonColumn(width = 4,
                               numericInput('pumpFuel1', 'Pumping Fuel, $/Stage', value = 5000, min = 1)),
-                  argonColumn(width = 6,
+                  argonColumn(width = 4,
                               numericInput('ancCompPerDay1', 'Ancillary Completion Services, $/Day', value = 50000, min = 1))
                 ),
                 h6('Sand Fractions: Should Add to 1'),
@@ -2308,20 +2339,20 @@ server <- function(input, output, session) {
 
   })
   # 
-  observe({
-    if(is.na(input$drill2020)||is.na(input$drill2021)||is.na(input$drill2022)||is.na(input$drill2023)||
-       is.na(input$drill2024)||is.na(input$drill2025)||is.na(input$drill2026)||is.na(input$drill2027)||
-       is.na(input$drill2028)||is.na(input$drill2029)){
-      NULL
-    } else {
-      if(input$drill2020 + input$drill2021 + input$drill2022 +input$drill2023 + input$drill2024 +
-         input$drill2025 + input$drill2026 + input$drill2027 + input$drill2028 + input$drill2029 == 0){
-        shinyjs::disable('addFcst')
-      } else {
-        shinyjs::enable('addFcst')
-      }
-    }
-  })
+  # observe({
+  #   if(is.na(input$drill2020)||is.na(input$drill2021)||is.na(input$drill2022)||is.na(input$drill2023)||
+  #      is.na(input$drill2024)||is.na(input$drill2025)||is.na(input$drill2026)||is.na(input$drill2027)||
+  #      is.na(input$drill2028)||is.na(input$drill2029)){
+  #     NULL
+  #   } else {
+  #     if(input$drill2020 + input$drill2021 + input$drill2022 +input$drill2023 + input$drill2024 +
+  #        input$drill2025 + input$drill2026 + input$drill2027 + input$drill2028 + input$drill2029 == 0){
+  #       shinyjs::disable('addFcst')
+  #     } else {
+  #       shinyjs::enable('addFcst')
+  #     }
+  #   }
+  # })
   #   
   observeEvent(input$addFcst, {
     if(is.null(values$subPlayList)||nrow(values$subPlayList)==0||is.null(values$price)){
@@ -3530,7 +3561,7 @@ server <- function(input, output, session) {
   # })
 
   output$spPlot1 <- renderHighchart({
-    if(is.null(values$p)){
+    if(is.null(values$p)||is.null(values$life)){
       NULL
     } else {
 
@@ -3542,6 +3573,7 @@ server <- function(input, output, session) {
           as.numeric(declineValues1()$curtailOilS)/12.0,seq(0, declineValues1()$wellLifeS-1/12, by= (1/12)))/12
 
         fitOil <- as.data.frame(fitOil)
+        
         #print(head(fitOil))
         #rm(fitOil)
         names(fitOil) <- c('oilFCST')
@@ -3555,8 +3587,11 @@ server <- function(input, output, session) {
         values$qiOil <- as.numeric(declineValues1()$qiOilS)/(fcstOil/1000)
         #print(values$qiOil)
         title <- paste('Forecast Oil EUR (MBO): ', as.integer(fcstOil/1000), sep='')
+        #print(head(fitOil))
+        #print(values$life)
         fitOil <- fitOil %>% filter(month <= values$life)
         fitOil$oilFCST <- fitOil$oilFCST/30.45
+        
         p <- values$p %>%
           hc_add_series(data = fitOil[,c('month', 'oilFCST')], type = 'line', hcaes(x = 'month', y='oilFCST'),name = 'Forecast') %>%
           hc_title(
