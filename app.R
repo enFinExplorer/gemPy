@@ -998,7 +998,7 @@ server <- function(input, output, session) {
       df1 <- df1 %>% filter(!id %in% df$id)
       df1 <- rbind(df1, df)
       values$subPlayList <- df1
-      print(df1)
+      #print(df1)
     }
     Sys.sleep(1)
     updatePickerInput(session, 'subPlayList', label = 'Active SubPlays',
@@ -1635,12 +1635,12 @@ server <- function(input, output, session) {
   # 
   # 
   observe({
-    if(is.null(values$fcst)||is.null(values$price)){
+    if(is.null(values$fcst)||is.null(values$price)||(input$qiOil*input$oilEUR+input$gasEUR*input$qiGas==0)){
       NULL
     } else {
 
       df <- values$fcst
-      #print(head(df))
+      
       #print('1644')
       df$Date <- paste0(year(today()), '-1-', month(today()))
       #print(head(df))
@@ -1674,7 +1674,7 @@ server <- function(input, output, session) {
       df$capex <- 0
       
       df <- df %>% arrange(desc(Date))
-      print('1670')
+      #print('1670')
       min1 <- which(df$NOCF >0)
       min1 <- min1[1]
       if(is.na(min1)){
@@ -1702,11 +1702,14 @@ server <- function(input, output, session) {
         df1$capex[1] <- expenseValues()$capex
   
         df <- rbind(df1, df) %>% select(Months, Oil, Gas, NGL, SalesGas, WTI, HH, OilRevenue, GasRevenue, NGLRevenue, Revenue, expense, tax, NOCF, capex)
+        df$WTI[is.na(df$WTI)] <- mean(df$WTI, na.rm=TRUE)
+        df$HH[is.na(df$HH)] <- mean(df$HH, na.rm=TRUE)
+        df$capex[is.na(df$capex)] <- 0
         df$FCF <- df$NOCF-df$capex
         df$Months <- seq(0, nrow(df)-1, 1)
-  
+        
         df$pv10 <- df$FCF/1.1^(df$Months/12)
-  
+        #print(head(df))
         output$npv10 <- renderText(paste0('NPV-10, (US$ Thousands): ',dollar(as.integer(sum(df$pv10)/1000))))
         irr <- IRRcalc(df$FCF, df$Months)
         output$irr <- renderText(paste0('Type Curve IRR: ',percent(irr)))
@@ -1766,7 +1769,7 @@ server <- function(input, output, session) {
       df$capex <- 0
 
       df <- df %>% arrange(desc(Date))
-      print('1762')
+      #print('1762')
       min1 <- which(df$NOCF >0)
       min1 <- min1[1]
       if(is.na(min1)){
@@ -3377,12 +3380,12 @@ server <- function(input, output, session) {
           filter(operator %in% input$operatorSelect) %>%
           filter(as.character(fp.year) %in% input$selectYr)
 
-        print(head(df))
+        #print(head(df))
       
         prod.data <- prodData1() %>% arrange(API, date) %>% filter(API %in% df$API)# %>% group_by(API) %>% mutate(month = cumsum(API/API))
         prod.data <- merge(prod.data, df[,c('API', 'perf', 'fp.year')], by='API', all.x=TRUE)
         
-        print(head(prod.data))
+        #print(head(prod.data))
         #print(head(prod.data))
         if(nrow(prod.data) == 0){
           NULL
@@ -3533,13 +3536,13 @@ server <- function(input, output, session) {
 
       if(input$productSelect1 == 'Oil'){
         #print(head(prod.data))
-        print(declineValues1())
+        #print(declineValues1())
         fitOil <- curtailed.q(arps.decline(
           as.numeric(declineValues1()$qiOilS)*365, as.nominal(as.numeric(declineValues1()$DiOilS)), as.numeric(declineValues1()$bOilS), as.nominal(as.numeric(declineValues1()$DfOilS))),
           as.numeric(declineValues1()$curtailOilS)/12.0,seq(0, declineValues1()$wellLifeS-1/12, by= (1/12)))/12
 
         fitOil <- as.data.frame(fitOil)
-        print(head(fitOil))
+        #print(head(fitOil))
         #rm(fitOil)
         names(fitOil) <- c('oilFCST')
         if(declineValues1()$curtailOilS > 0){
@@ -3550,7 +3553,7 @@ server <- function(input, output, session) {
 
         fcstOil <- sum(fitOil$oil)
         values$qiOil <- as.numeric(declineValues1()$qiOilS)/(fcstOil/1000)
-        print(values$qiOil)
+        #print(values$qiOil)
         title <- paste('Forecast Oil EUR (MBO): ', as.integer(fcstOil/1000), sep='')
         fitOil <- fitOil %>% filter(month <= values$life)
         fitOil$oilFCST <- fitOil$oilFCST/30.45
@@ -3951,7 +3954,7 @@ server <- function(input, output, session) {
 
         df <- bind_rows(econSummary)
         df <- df %>% filter(IRR >= (as.numeric(declineValues1()$cutoff)/100))
-        print(head(df))
+        #print(head(df))
 
 
 
@@ -4002,7 +4005,7 @@ server <- function(input, output, session) {
             #print(summary(df))
   
             df <- as.data.frame(df)
-            print(head(df))
+            #print(head(df))
   
             econSummary <- lapply(split(df, df[,'operator']), function (df1) tryCatch({
               df2 <- df1
@@ -4287,7 +4290,7 @@ server <- function(input, output, session) {
   
             df <- bind_rows(econSummary)
             df <- as.data.frame(df)
-            print(head(df))
+            #print(head(df))
   
             df1 <- df[,c('decl2Oil', 'decl3Oil', 'decl4Oil',
                          'decl5Oil', 'decl6Oil', 'decl7Oil',
@@ -4469,12 +4472,12 @@ server <- function(input, output, session) {
 
         rownames(expenseValues2) <- expenseValues2$Component
         expenseValues2 <- subset(expenseValues2, select = -c(Component))
-        print(expenseValues2)
+        #print(expenseValues2)
         #print(head(expenseValues1))
         #print(head(declines))
         names(expenseValues2) <- names(declines)
         declines <- rbind(as.data.frame(declines), as.data.frame(expenseValues2))
-        print(declines)
+        #print(declines)
 
         values$declines <- declines
 
