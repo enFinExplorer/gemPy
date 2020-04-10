@@ -24,6 +24,8 @@ options(stringsAsFactors = FALSE)
 options(scipen = 999)
 
 data1 <- readRDS('./data/operatorData.rds')
+data1$qiOil[data1$oilEUR == 0] <- 1
+data1$qiGas[data1$gasEUR == 0] <- 1
 data2 <- readRDS('./data/pdp.rds')
 
 opList <- readRDS('./data/opList.rds')# %>% filter(operator != 'Artex Oil')
@@ -1302,19 +1304,22 @@ server <- function(input, output, session) {
       shinyjs::hide('wti10')
       shinyjs::hide('hh10')
 
-      crude <-'https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx?n=PET&s=RWTC&f=M'
+      #crude <-'https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx?n=PET&s=RWTC&f=M'
+      crude <- 'https://www.eia.gov/dnav/pet/hist/RWTCD.htm'
+      
       webpage <- read_html(crude)
       tbls_ls <- webpage %>%
         html_nodes('table') %>%
-        .[5] %>%
+        .[6] %>%
         html_table(fill = TRUE)
       wti1 <- tbls_ls[[1]]
-      wti1 <- wti1 %>% filter(!is.na(Jan))
-
-      wti1 <- wti1 %>% gather(DATE, WTI, -c(Year))
-      wti1 <- wti1 %>% mutate(DATE = paste0(DATE,'/01/', Year))
-      wti1$DATE <- as.POSIXct(wti1$DATE, format = '%b/%d/%Y')
-      wti1 <- wti1 %>% arrange(DATE) %>% select(DATE, WTI)
+      wti1 <- wti1 %>% filter(!is.na(Mon))
+      wti1$Year <- word(wti1$`Week Of`,1)
+      wti1$Month <- substr(word(wti1$`Week Of`,2),1,3)
+      wti1$DATE <- as.POSIXct(paste0(wti1$Month, '-01-', wti1$Year), format = '%b-%d-%Y')
+      wti1 <- wti1[,2:ncol(wti1)]
+      wti1 <- wti1 %>% gather(Day, WTI, -c(Year, Month, DATE))
+      wti1 <-wti1 %>% group_by(DATE) %>% summarise(WTI = mean(WTI, na.rm=TRUE)) %>% ungroup()
 
       crude <-'https://www.eia.gov/dnav/ng/hist/rngwhhdm.htm'
       webpage <- read_html(crude)
@@ -1583,86 +1588,118 @@ server <- function(input, output, session) {
   })
   # 
   output$tcPlot <- renderHighchart({
-
-    DiOil <- 25
-    oilEUR <- 0.1
-    if(declineValues()$oilEUR == 0){
+    if((input$qiOil*input$oilEUR+input$gasEUR*input$qiGas==0)||
+      (input$oilEUR/input$qiOil > 100)||(input$gasEUR/input$qiGas > 100)||
+      (is.nan(input$oilEUR/input$qiOil) & is.nan(input$gasEUR/input$qiGas))){
+      
+      values$fcst <- NULL
+    } else {
       DiOil <- 25
-    } else {
-      while(oilEUR <= declineValues()$oilEUR*1000){
-        oilEUR <- sum(curtailed.q(arps.decline(
-          declineValues()$qiOil*365, (DiOil), declineValues()$bOil, as.nominal(declineValues()$DfOil/100)),
-          declineValues()$curtailOil/12.0, seq(0, declineValues()$wellLife-1/12, by = (1/12)))/12)
-
-        DiOil <- DiOil -0.01
+      oilEUR <- 0.1
+      if(declineValues()$oilEUR == 0){
+        DiOil <- 25
+      } else {
+        while(oilEUR <= declineValues()$oilEUR*1000){
+          oilEUR <- sum(curtailed.q(arps.decline(
+            declineValues()$qiOil*365, (DiOil), declineValues()$bOil, as.nominal(declineValues()$DfOil/100)),
+            declineValues()$curtailOil/12.0, seq(0, declineValues()$wellLife-1/12, by = (1/12)))/12)
+  
+          DiOil <- DiOil -0.01
+        }
       }
-    }
-
-    DiGas<- 25
-    gasEUR <- 0.1
-    if(declineValues()$gasEUR == 0){
-      DiGas <- 25
-    } else {
-      while(gasEUR <= declineValues()$gasEUR*1000){
-        gasEUR <- sum(curtailed.q(arps.decline(
-          declineValues()$qiGas*365, (DiGas), declineValues()$bGas, as.nominal(declineValues()$DfGas/100)),
-          declineValues()$curtailGas/12.0, seq(0, declineValues()$wellLife-1/12, by = (1/12)))/12)
-
-        DiGas <- DiGas -0.01
+  
+      DiGas<- 25
+      gasEUR <- 0.1
+      if(declineValues()$gasEUR == 0){
+        DiGas <- 25
+      } else {
+        while(gasEUR <= declineValues()$gasEUR*1000){
+          gasEUR <- sum(curtailed.q(arps.decline(
+            declineValues()$qiGas*365, (DiGas), declineValues()$bGas, as.nominal(declineValues()$DfGas/100)),
+            declineValues()$curtailGas/12.0, seq(0, declineValues()$wellLife-1/12, by = (1/12)))/12)
+  
+          DiGas <- DiGas -0.01
+        }
       }
-    }
-    values$DiOil <- DiOil
-    values$DiGas <- DiGas
-
-    oil <- curtailed.q(arps.decline(
-      declineValues()$qiOil*365, (DiOil), declineValues()$bOil, as.nominal(declineValues()$DfOil/100)),
-      declineValues()$curtailOil/12.0, seq(0, declineValues()$wellLife-1/12, by = (1/12)))/12
-    gas <- curtailed.q(arps.decline(
-      declineValues()$qiGas*365, (DiGas), declineValues()$bGas, as.nominal(declineValues()$DfGas/100)),
-      declineValues()$curtailGas/12.0, seq(0, declineValues()$wellLife-1/12, by = (1/12)))/12
-
-
-
-    df <- data.frame(Months = seq(1, declineValues()$wellLife*12, by = 1), Gas = gas, Oil = oil)
-    rm(oil, gas)
-
-      #df <- df %>% filter(Months <= (declineValues()$wellLife)*12) %>%filter(!duplicated(Months))
+      values$DiOil <- DiOil
+      values$DiGas <- DiGas
+  
+      oil <- curtailed.q(arps.decline(
+        declineValues()$qiOil*365, (DiOil), declineValues()$bOil, as.nominal(declineValues()$DfOil/100)),
+        declineValues()$curtailOil/12.0, seq(0, declineValues()$wellLife-1/12, by = (1/12)))/12
+      gas <- curtailed.q(arps.decline(
+        declineValues()$qiGas*365, (DiGas), declineValues()$bGas, as.nominal(declineValues()$DfGas/100)),
+        declineValues()$curtailGas/12.0, seq(0, declineValues()$wellLife-1/12, by = (1/12)))/12
+  
+  
+  
+      df <- data.frame(Months = seq(1, declineValues()$wellLife*12, by = 1), Gas = gas, Oil = oil)
+      rm(oil, gas)
+  
+        #df <- df %>% filter(Months <= (declineValues()$wellLife)*12) %>%filter(!duplicated(Months))
+        df <- as.data.frame(df)
+  
+  
+  
+  
+      print(head(df))
+      #values$oilEUR <- as.integer(sum(df$Oil)/1000)
+      #values$gasEUR <- as.integer(sum(df$Gas)/1000)
+      #print(head(df))
+      values$fcst <- df
       df <- as.data.frame(df)
-
-
-
-
-    #print(head(df))
-    #values$oilEUR <- as.integer(sum(df$Oil)/1000)
-    #values$gasEUR <- as.integer(sum(df$Gas)/1000)
-    #print(head(df))
-    values$fcst <- df
-    df <- as.data.frame(df)
-    df$Oil <- df$Oil/30.45
-    df$Gas <- df$Gas/30.45
-    df <- df %>% filter(Months <= 36)
-    df$Oil <- as.integer(df$Oil)
-    df$Gas <- as.integer(df$Gas)
-    #print(head(df))
-    #df <- df %>% gather(Component, Value, -c(Months))
-    #df$Value <- df$Value/30.45
-    #df <- df %>% filter((Months >= 1 & Months < 12)|Months %% 12 == 0)
-
-    cols <- c('#027971','#ff4e50', '#eaa814', '#5c1848', '#786592', '#ff4e50',  '#008542', '#5c6d00')
-
-    highchart() %>%
-      hc_colors(cols) %>%
-      hc_xAxis(title = list(text = '<b>Months Producing</b>')) %>%
-      hc_yAxis_multiples(list(title = list(text = "<b>Oil Production, bbl/d</b>"),opposite=FALSE),
-                         list(title = list(text = "<b>Gas Production, mcf/d</b>"),opposite=TRUE)) %>%
-      hc_add_series(df, type = "line",
-                    hcaes(x = Months, y = Oil), name = 'Oil') %>%
-      hc_add_series(df, type = 'line',
-                    hcaes(x=Months, y = Gas), name = 'Gas', yAxis = 1) %>%
-      hc_title(text = 'Type Curve Forecast', align = 'left') %>%
-      #hc_subtitle(text = paste0('<i>','Oil EUR (mbo): ',input$oilEUR,' Gas EUR (mmcf): ', input$gasEUR, '</i>'), align = 'left') %>%
-      hc_credits(enabled = TRUE, text = "Wood Mackenzie", src = "http://www.woodmac.com")
-
+      df$Oil <- df$Oil/30.45
+      df$Gas <- df$Gas/30.45
+      df <- df %>% filter(Months <= 36)
+      df$Oil <- as.integer(df$Oil)
+      df$Gas <- as.integer(df$Gas)
+      #print(head(df))
+      #df <- df %>% gather(Component, Value, -c(Months))
+      #df$Value <- df$Value/30.45
+      #df <- df %>% filter((Months >= 1 & Months < 12)|Months %% 12 == 0)
+  
+      cols <- c('#027971','#ff4e50', '#eaa814', '#5c1848', '#786592', '#ff4e50',  '#008542', '#5c6d00')
+      if(is.nan(input$oilEUR/input$qiOil)){
+        highchart() %>%
+          hc_colors(cols) %>%
+          hc_xAxis(title = list(text = '<b>Months Producing</b>')) %>%
+          hc_yAxis_multiples(list(title = list(text = "<b>Oil Production, bbl/d</b>"),opposite=FALSE),
+                             list(title = list(text = "<b>Gas Production, mcf/d</b>"),opposite=TRUE)) %>%
+          #hc_add_series(df, type = "line",
+           #             hcaes(x = Months, y = Oil), name = 'Oil') %>%
+          hc_add_series(df, type = 'line',
+                        hcaes(x=Months, y = Gas), name = 'Gas', yAxis = 1) %>%
+          hc_title(text = 'Type Curve Forecast', align = 'left') %>%
+          #hc_subtitle(text = paste0('<i>','Oil EUR (mbo): ',input$oilEUR,' Gas EUR (mmcf): ', input$gasEUR, '</i>'), align = 'left') %>%
+          hc_credits(enabled = TRUE, text = "Wood Mackenzie", src = "http://www.woodmac.com")
+      } else if (is.nan(input$gasEUR/input$qiGas)){
+        highchart() %>%
+          hc_colors(cols) %>%
+          hc_xAxis(title = list(text = '<b>Months Producing</b>')) %>%
+          hc_yAxis_multiples(list(title = list(text = "<b>Oil Production, bbl/d</b>"),opposite=FALSE),
+                             list(title = list(text = "<b>Gas Production, mcf/d</b>"),opposite=TRUE)) %>%
+          hc_add_series(df, type = "line",
+                        hcaes(x = Months, y = Oil), name = 'Oil') %>%
+          #hc_add_series(df, type = 'line',
+           #             hcaes(x=Months, y = Gas), name = 'Gas', yAxis = 1) %>%
+          hc_title(text = 'Type Curve Forecast', align = 'left') %>%
+          #hc_subtitle(text = paste0('<i>','Oil EUR (mbo): ',input$oilEUR,' Gas EUR (mmcf): ', input$gasEUR, '</i>'), align = 'left') %>%
+          hc_credits(enabled = TRUE, text = "Wood Mackenzie", src = "http://www.woodmac.com")
+      } else {
+      highchart() %>%
+        hc_colors(cols) %>%
+        hc_xAxis(title = list(text = '<b>Months Producing</b>')) %>%
+        hc_yAxis_multiples(list(title = list(text = "<b>Oil Production, bbl/d</b>"),opposite=FALSE),
+                           list(title = list(text = "<b>Gas Production, mcf/d</b>"),opposite=TRUE)) %>%
+        hc_add_series(df, type = "line",
+                      hcaes(x = Months, y = Oil), name = 'Oil') %>%
+        hc_add_series(df, type = 'line',
+                      hcaes(x=Months, y = Gas), name = 'Gas', yAxis = 1) %>%
+        hc_title(text = 'Type Curve Forecast', align = 'left') %>%
+        #hc_subtitle(text = paste0('<i>','Oil EUR (mbo): ',input$oilEUR,' Gas EUR (mmcf): ', input$gasEUR, '</i>'), align = 'left') %>%
+        hc_credits(enabled = TRUE, text = "Wood Mackenzie", src = "http://www.woodmac.com")
+      }
+      }
 
 
   })
@@ -1670,7 +1707,9 @@ server <- function(input, output, session) {
   # 
   # 
   observe({
-    if(is.null(values$fcst)||is.null(values$price)||(input$qiOil*input$oilEUR+input$gasEUR*input$qiGas==0)){
+    if(is.null(values$fcst)||is.null(values$price)||(input$qiOil*input$oilEUR+input$gasEUR*input$qiGas==0)||
+       (input$oilEUR/input$qiOil > 100)||(input$gasEUR/input$qiGas > 100)||
+       (is.nan(input$oilEUR/input$qiOil))||(is.nan(input$gasEUR/input$qiGas))){
       NULL
     } else {
 
@@ -1709,7 +1748,7 @@ server <- function(input, output, session) {
       df$capex <- 0
       
       df <- df %>% arrange(desc(Date))
-      #print('1670')
+      print('1712')
       min1 <- which(df$NOCF >0)
       min1 <- min1[1]
       if(is.na(min1)){
