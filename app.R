@@ -692,8 +692,6 @@ ui <- argonDashPage(
                 border_level = 1,
                 width = 12,
                 argonRow(
-                  tableHTML_output('capexCalcs')),
-                argonRow(
                   argonColumn(width = 3,
                               numericInput('capexStressor1', 'Capex Stress', value = 1, min = 0.1))
                 ),
@@ -733,7 +731,13 @@ ui <- argonDashPage(
                   argonColumn(width = 3,
                               numericInput('northernSelect1', 'Northern White', value = 0, min = 0, max = 1))
                 )
-              )
+              ),
+              argonColumn(
+                width = 12,
+                center = TRUE,
+                tableHTML_output('capexCalcs')
+                ),
+               
             ),
             argonColumn(
               width = 12,
@@ -2704,7 +2708,7 @@ server <- function(input, output, session) {
       names(df1) <- c('Year', 'Oil, mbbls', 'Gas, mmcf', 'NGL, mbbls',
                       'Sales Gas, mmcf', 'Net Oil, mbbls', 'Net Gas, mmcf', 'Net NGL, mbbls',
                       'Oil Revenue, $000s', 'Gas Revenue, $000s',
-                      'NGL Revenue, $$000s', 'Total Revenue, $$000s', 'Expenses, $000s', 'Taxes, $000s',
+                      'NGL Revenue, $000s', 'Total Revenue, $000s', 'Expenses, $000s', 'Taxes, $000s',
                       'NOCF, $000s', 'Capex, $000s', 'Free Cash Flow, $000s')
       df1 <- df1 %>% group_by(Year) %>% summarise_all(sum) %>% ungroup() %>% arrange(Year)
 
@@ -2743,7 +2747,7 @@ server <- function(input, output, session) {
       names(df1) <- c('Year', 'Oil, mbbls', 'Gas, mmcf', 'NGL, mbbls',
                       'Sales Gas, mmcf', 'Net Oil, mbbls', 'Net Gas, mmcf', 'Net NGL, mbbls',
                       'Oil Revenue, $000s', 'Gas Revenue, $000s',
-                      'NGL Revenue, $$000s', 'Total Revenue, $$000s', 'Expenses, $000s', 'Taxes, $000s',
+                      'NGL Revenue, $000s', 'Total Revenue, $000s', 'Expenses, $000s', 'Taxes, $000s',
                       'NOCF, $000s', 'Capex, $000s', 'Free Cash Flow, $000s')
 
       DT::datatable(df1, rownames = FALSE,
@@ -2781,7 +2785,7 @@ server <- function(input, output, session) {
       names(df1) <- c('Year', 'Oil, mbbls', 'Gas, mmcf', 'NGL, mbbls',
                       'Sales Gas, mmcf', 'Net Oil, mbbls', 'Net Gas, mmcf', 'Net NGL, mbbls',
                       'Oil Revenue, $000s', 'Gas Revenue, $000s',
-                      'NGL Revenue, $$000s', 'Total Revenue, $$000s', 'Expenses, $000s', 'Taxes, $000s',
+                      'NGL Revenue, $000s', 'Total Revenue, $000s', 'Expenses, $000s', 'Taxes, $000s',
                       'NOCF, $000s', 'Capex, $000s', 'Free Cash Flow, $000s')
 
       DT::datatable(df1, rownames = FALSE,
@@ -3129,7 +3133,9 @@ server <- function(input, output, session) {
       names(working1) <- c('Drill & Complete, $', 'Drill, Complete, & Equip, $', 'D&C Per Ft, $/Ft', 'DC&E Per Ft, $/Ft')
       #print(head(working1))
       #working1
-      table1 <- tableHTML(working1, rownames = FALSE)
+      table1 <- tableHTML(working1, rownames = FALSE, caption = 'Table: Cost Center of Excellence Calculation of Well Cost based on Lens Actuals') %>% 
+        add_css_row(css = list(c('background-color', 'border'), c('white', '2px solid lightgray'))) %>%
+        add_css_table(css = list('text-align', 'center'))
       
       #datatable((working1), rownames=FALSE, 
       #            escape = FALSE,extensions = c('Buttons', 'ColReorder', 'FixedHeader','KeyTable',  'Scroller'),
