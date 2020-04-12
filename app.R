@@ -24,8 +24,8 @@ options(stringsAsFactors = FALSE)
 options(scipen = 999)
 
 data1 <- readRDS('./data/operatorData.rds')
-data1$qiOil[data1$oilEUR == 0] <- 1
-data1$qiGas[data1$gasEUR == 0] <- 1
+data1$qiOil[data1$oilEUR == 0] <- 0.001
+data1$qiGas[data1$gasEUR == 0] <- 0.001
 data2 <- readRDS('./data/pdp.rds')
 
 opList <- readRDS('./data/opList.rds')# %>% filter(operator != 'Artex Oil')
@@ -78,7 +78,36 @@ IRRcalc <- function(cf, months){
   return(IRR1)
 }
 
+crude <- 'https://www.eia.gov/dnav/pet/hist/RWTCD.htm'
 
+webpage <- read_html(crude)
+tbls_ls <- webpage %>%
+  html_nodes('table') %>%
+  .[6] %>%
+  html_table(fill = TRUE)
+wti1 <- tbls_ls[[1]]
+wti1 <- wti1 %>% filter(!is.na(Mon))
+wti1$Year <- word(wti1$`Week Of`,1)
+wti1$Month <- substr(word(wti1$`Week Of`,2),1,3)
+wti1$DATE <- as.POSIXct(paste0(wti1$Month, '-01-', wti1$Year), format = '%b-%d-%Y')
+wti1 <- wti1[,2:ncol(wti1)]
+wti1 <- wti1 %>% gather(Day, WTI, -c(Year, Month, DATE))
+wti1 <-wti1 %>% group_by(DATE) %>% summarise(WTI = mean(WTI, na.rm=TRUE)) %>% ungroup()
+
+crude <-'https://www.eia.gov/dnav/ng/hist/rngwhhdm.htm'
+webpage <- read_html(crude)
+tbls_ls <- webpage %>%
+  html_nodes('table') %>%
+  .[5] %>%
+  html_table(fill = TRUE)
+hh1 <- tbls_ls[[1]]
+hh1 <- hh1 %>% filter(!is.na(Jan))
+
+hh1 <- hh1 %>% gather(DATE, HH, -c(Year))
+hh1 <- hh1 %>% mutate(DATE = paste0(DATE,'/01/', Year))
+hh1$DATE <- as.POSIXct(hh1$DATE, format = '%b/%d/%Y')
+hh1 <- hh1 %>% arrange(DATE) %>% select(DATE, HH)
+wti1 <- wti1 %>% filter(DATE >= min(hh1$DATE))
 
 css <- HTML(
   "#allTable > .dataTables_wrapper.no-footer > .dataTables_scroll > .dataTables_scrollBody {
@@ -292,7 +321,7 @@ ui <- argonDashPage(
                 
                 numericInput('oilEUR', 'Oil EUR/Well, mbbls', value = 100, min = 0, max = 10000),
                 numericInput('curtailOil', 'Oil Curtailment, Months', value = 1, min = 0),
-                numericInput('qiOil', 'Oil IP-30, bbl/d', value = 100, min = 0),
+                numericInput('qiOil', 'Oil IP-30, bbl/d', value = 100, min = 0.001),
                 numericInput('bOil', 'Oil B-Factor', value = 1, min = 0, max = 2),
                 numericInput('DfOil', 'Oil Terminal Decline, %', min = 1, max = 30, value = 10)
                 )
@@ -306,7 +335,7 @@ ui <- argonDashPage(
                 width = 12,
                 numericInput('gasEUR', 'Wet Gas EUR/Well, mmcf', value = 1000, min = 0, max = 100000),
                 numericInput('curtailGas', 'Gas Curtailment, Months', value = 1, min = 0),
-                numericInput('qiGas', 'Gas IP-30, mcf/d', value = 1000, min = 0),
+                numericInput('qiGas', 'Gas IP-30, mcf/d', value = 1000, min = 0.001),
                 numericInput('bGas', 'Gas B-Factor', value = 1, min = 0, max = 2),
                 numericInput('DfGas', 'Gas Terminal Decline, %', min = 1, max = 30, value = 8),
                 numericInput('shrink', 'Shrink (Percent Gas Sold), %',  value = 90, min = 0),
@@ -847,7 +876,15 @@ server <- function(input, output, session) {
   shinyjs::disable('projectType')
   shinyjs::disable('saveProject')
   
- 
+ # observe({
+ #   if(input$qiOil == 0){
+ #     updateNumericInput(session, 'qiOil', value = 0.001)
+ #   }
+ #   
+ #   if(input$qiGas == 0){
+ #     updateNumericInput(session, 'qiGas', value = 0.001)
+ #   }
+ # })
   
   observeEvent(input$projectType, {
     check1 <-data1 %>% filter(operator == input$operator)
@@ -1305,36 +1342,7 @@ server <- function(input, output, session) {
       shinyjs::hide('hh10')
 
       #crude <-'https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx?n=PET&s=RWTC&f=M'
-      crude <- 'https://www.eia.gov/dnav/pet/hist/RWTCD.htm'
       
-      webpage <- read_html(crude)
-      tbls_ls <- webpage %>%
-        html_nodes('table') %>%
-        .[6] %>%
-        html_table(fill = TRUE)
-      wti1 <- tbls_ls[[1]]
-      wti1 <- wti1 %>% filter(!is.na(Mon))
-      wti1$Year <- word(wti1$`Week Of`,1)
-      wti1$Month <- substr(word(wti1$`Week Of`,2),1,3)
-      wti1$DATE <- as.POSIXct(paste0(wti1$Month, '-01-', wti1$Year), format = '%b-%d-%Y')
-      wti1 <- wti1[,2:ncol(wti1)]
-      wti1 <- wti1 %>% gather(Day, WTI, -c(Year, Month, DATE))
-      wti1 <-wti1 %>% group_by(DATE) %>% summarise(WTI = mean(WTI, na.rm=TRUE)) %>% ungroup()
-
-      crude <-'https://www.eia.gov/dnav/ng/hist/rngwhhdm.htm'
-      webpage <- read_html(crude)
-      tbls_ls <- webpage %>%
-        html_nodes('table') %>%
-        .[5] %>%
-        html_table(fill = TRUE)
-      hh1 <- tbls_ls[[1]]
-      hh1 <- hh1 %>% filter(!is.na(Jan))
-
-      hh1 <- hh1 %>% gather(DATE, HH, -c(Year))
-      hh1 <- hh1 %>% mutate(DATE = paste0(DATE,'/01/', Year))
-      hh1$DATE <- as.POSIXct(hh1$DATE, format = '%b/%d/%Y')
-      hh1 <- hh1 %>% arrange(DATE) %>% select(DATE, HH)
-      wti1 <- wti1 %>% filter(DATE >= min(hh1$DATE))
 
       crude = 'https://quotes.wsj.com/futures/CRUDE%20OIL%20-%20ELECTRONIC/contracts'
       webpage <- read_html(crude)
@@ -1443,39 +1451,12 @@ server <- function(input, output, session) {
       shinyjs::show('wti10')
       shinyjs::show('hh10')
 
-      crude <-'https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx?n=PET&s=RWTC&f=M'
-      webpage <- read_html(crude)
-      tbls_ls <- webpage %>%
-        html_nodes('table') %>%
-        .[5] %>%
-        html_table(fill = TRUE)
-      wti1 <- tbls_ls[[1]]
-      wti1 <- wti1 %>% filter(!is.na(Jan))
+      
 
-      wti1 <- wti1 %>% gather(DATE, WTI, -c(Year))
-      wti1 <- wti1 %>% mutate(DATE = paste0(DATE,'/01/', Year))
-      wti1$DATE <- as.POSIXct(wti1$DATE, format = '%b/%d/%Y')
-      wti1 <- wti1 %>% arrange(DATE) %>% select(DATE, WTI)
+      wti2 <- wti1 %>% filter(!is.na(WTI))
+      hh2 <- hh1 %>% filter(!is.na(HH))
 
-      crude <-'https://www.eia.gov/dnav/ng/hist/rngwhhdm.htm'
-      webpage <- read_html(crude)
-      tbls_ls <- webpage %>%
-        html_nodes('table') %>%
-        .[5] %>%
-        html_table(fill = TRUE)
-      hh1 <- tbls_ls[[1]]
-      hh1 <- hh1 %>% filter(!is.na(Jan))
-
-      hh1 <- hh1 %>% gather(DATE, HH, -c(Year))
-      hh1 <- hh1 %>% mutate(DATE = paste0(DATE,'/01/', Year))
-      hh1$DATE <- as.POSIXct(hh1$DATE, format = '%b/%d/%Y')
-      hh1 <- hh1 %>% arrange(DATE) %>% select(DATE, HH)
-      wti1 <- wti1 %>% filter(DATE >= min(hh1$DATE))
-
-      wti1 <- wti1 %>% filter(!is.na(WTI))
-      hh1 <- hh1 %>% filter(!is.na(HH))
-
-      df <- left_join(wti1, hh1)
+      df <- left_join(wti2, hh2)
       df1 <- data.frame(months = seq(1, 80*12, 1), DATE = max(df$DATE), WTI = NA, HH = NA)
       df1 <- df1 %>% mutate(DATE = DATE %m+% months(months))
       df1$WTI[year(df1$DATE) == 2020] <- priceValues()$wti1
