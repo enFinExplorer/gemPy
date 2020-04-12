@@ -237,7 +237,7 @@ ui <- argonDashPage(
                 argonRow(
                   argonColumn(
                     width = 2,
-                    awesomeRadio('priceType', 'Price File', choices = c('Strip', 'Custom'), status = 'primary')
+                    awesomeRadio('priceType', 'Price File', choices = c('Strip','Flat', 'Custom'), status = 'primary')
                   ),
                   argonColumn(
                     width = 5,
@@ -1428,7 +1428,7 @@ server <- function(input, output, session) {
       values$price <- price
 
 
-    } else {
+    } else if(input$priceType == 'Custom'){
 
       shinyjs::show('wti1')
       shinyjs::show('hh1')
@@ -1484,6 +1484,46 @@ server <- function(input, output, session) {
       df <- df %>% filter(year(DATE) >= 2015)
       values$price <- df
 
+    } else {
+      shinyjs::show('wti1')
+      shinyjs::show('hh1')
+      shinyjs::hide('wti2')
+      shinyjs::hide('hh2')
+      shinyjs::hide('wti3')
+      shinyjs::hide('hh3')
+      shinyjs::hide('wti4')
+      shinyjs::hide('hh4')
+      shinyjs::hide('wti5')
+      shinyjs::hide('hh5')
+      shinyjs::hide('wti6')
+      shinyjs::hide('hh6')
+      shinyjs::hide('wti7')
+      shinyjs::hide('hh7')
+      shinyjs::hide('wti8')
+      shinyjs::hide('hh8')
+      shinyjs::hide('wti9')
+      shinyjs::hide('hh9')
+      shinyjs::hide('wti10')
+      shinyjs::hide('hh10')
+      
+      
+      
+      wti2 <- wti1 %>% filter(!is.na(WTI))
+      hh2 <- hh1 %>% filter(!is.na(HH))
+      
+      df <- left_join(wti2, hh2)
+      df1 <- data.frame(months = seq(1, 80*12, 1), DATE = max(df$DATE), WTI = NA, HH = NA)
+      df1 <- df1 %>% mutate(DATE = DATE %m+% months(months))
+      df1$WTI <- priceValues()$wti1
+      
+      df1$HH <- priceValues()$hh1
+      
+      df1 <- subset(df1, select = -c(months))
+      df <- rbind(df, df1)
+      df <- df %>% filter(year(DATE) >= 2015)
+      values$price <- df
+      
+    
     }
   })
 
