@@ -3935,7 +3935,7 @@ server <- function(input, output, session) {
         econSummary <- lapply(split(df, df[,'oneSecLocation']), function (df1) tryCatch({
           df2 <- df1
           fitOil <- curtailed.q(arps.decline(
-            as.numeric(df1$qiOil)*365, (as.numeric(df1$DiOil)), as.numeric(df1$bOil), as.nominal(as.numeric(df1$DfOil))),
+            as.numeric(df1$qiOil)*365, as.nominal(as.numeric(df1$DiOil)), as.numeric(df1$bOil), as.nominal(as.numeric(df1$DfOil))),
             as.numeric(declineValues1()$curtailOilS)/12.0,seq(0, declineValues1()$wellLifeS-1/12, by= (1/12)))/12
 
           fit <- as.data.frame(fitOil)
@@ -3949,7 +3949,7 @@ server <- function(input, output, session) {
           fit <- fit %>% mutate(prodMonth = nrow(fit)) %>% mutate(prodMonth = cumsum(prodMonth/prodMonth))
 
           fitGas <- curtailed.q(arps.decline(
-            as.numeric(df1$qiGas)*365, (as.numeric(df1$DiGas)), as.numeric(df1$bGas), as.nominal(as.numeric(df1$DfGas))),
+            as.numeric(df1$qiGas)*365, as.nominal(as.numeric(df1$DiGas)), as.numeric(df1$bGas), as.nominal(as.numeric(df1$DfGas))),
             as.numeric(declineValues1()$curtailGasS)/12.0,seq(0, declineValues1()$wellLifeS-1/12, by= (1/12)))/12
           names(fitGas) <- c('gasFCST')
           fit$gasFCST <- fitGas
@@ -4111,7 +4111,7 @@ server <- function(input, output, session) {
             econSummary <- lapply(split(df, df[,'operator']), function (df1) tryCatch({
               df2 <- df1
               fitOil <- curtailed.q(arps.decline(
-                as.numeric(df1$qiOil)*365, (as.numeric(df1$DiOil)), as.numeric(df1$bOil), as.nominal(as.numeric(df1$DfOil))),
+                as.numeric(df1$qiOil)*365, as.nominal(as.numeric(df1$DiOil)), as.numeric(df1$bOil), as.nominal(as.numeric(df1$DfOil))),
                 as.numeric(declineValues1()$curtailOilS)/12.0,seq(0, declineValues1()$wellLifeS-1/12, by= (1/12)))/12
   
               fit <- as.data.frame(fitOil)
@@ -4125,7 +4125,7 @@ server <- function(input, output, session) {
               fit <- fit %>% mutate(prodMonth = nrow(fit)) %>% mutate(prodMonth = cumsum(prodMonth/prodMonth))
   
               fitGas <- curtailed.q(arps.decline(
-                as.numeric(df1$qiGas)*365, (as.numeric(df1$DiGas)), as.numeric(df1$bGas), as.nominal(as.numeric(df1$DfGas))),
+                as.numeric(df1$qiGas)*365, as.nominal(as.numeric(df1$DiGas)), as.numeric(df1$bGas), as.nominal(as.numeric(df1$DfGas))),
                 as.numeric(declineValues1()$curtailGasS)/12.0,seq(0, declineValues1()$wellLifeS-1/12, by= (1/12)))/12
               names(fitGas) <- c('gasFCST')
               fit$gasFCST <- fitGas
