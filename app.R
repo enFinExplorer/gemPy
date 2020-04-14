@@ -18,6 +18,17 @@ library(jsonlite)
 library(caret)
 library(kernlab)
 library(tableHTML)
+library(akima)
+library(maptools)
+library(maps)
+library(tools)
+library(geosphere)
+library(tigris)
+library(openintro)
+library(RColorBrewer)
+library(rgdal)
+library(leaflet)
+library(leaflet.extras)
 
 options(shiny.maxRequestSize=30*1024^2)
 options(stringsAsFactors = FALSE)
@@ -31,6 +42,7 @@ data2 <- readRDS('./data/pdp.rds')
 opList <- readRDS('./data/opList.rds')# %>% filter(operator != 'Artex Oil')
 wellData <- readRDS('./data/assetSummary.rds')
 costData <- readRDS('./data/costData.rds')
+countyData <- readRDS('./data/countyData.rds')
 prodData <- readRDS('./data/prodData.rds')
 propUplift <- readRDS('./data/propUplift.rds')
 acreageGEM <- readRDS('./data/acreageGEM.rds')
@@ -208,6 +220,11 @@ ui <- argonDashPage(
           tabName = "evaluator",
           icon = argonIcon(name = "folder-17", color = "default"),
           "Evaluator"
+        ),
+        argonSidebarItem(
+          tabName = "map",
+          icon = argonIcon(name = "map-big", color = "info"),
+          "EUR Map"
         )
         
       )
@@ -862,6 +879,12 @@ ui <- argonDashPage(
               )
             )
           )
+        ),
+        argonTabItem(
+          tabName = 'map',
+          awesomeRadio('mapMetric', label = 'Fluid Equivalent', choices = c('BOE', 'MCFE')),
+          leafletOutput('map', height = 800),
+          argonH1(display = 3, 'Sticks are Selected Operator/SubPlay Locations, Circles are that Operators Acreage within Subplay')
         )
       )
         
@@ -4617,6 +4640,356 @@ server <- function(input, output, session) {
     }
   })
   
+  
+  observe({
+    if(is.null(input$subPlay1)||input$subPlay1 == ''){
+      NULL
+    } else {
+      ogip1 <- ogip()
+      ogip1 <- ogip1 %>% mutate(threeSecLocation = paste(round(distLat/(5280*3), digits=0),',', (round(distLong/(5280*3),digits=0)),sep=''))
+      ogip1 <- ogip1 %>% group_by(threeSecLocation) %>% summarise(avLat =mean(avLat), avLong = mean(avLong), risk = mean(risk, na.rm=TRUE), gasFrac = mean(gasFrac, na.rm=TRUE))
+      ogip1$perf <- as.numeric(capexValues1()$perfSelect)
+      ogip1$ppf <- as.numeric(capexValues1()$ppfSelect)
+      ogip1$fpf <- as.numeric(capexValues1()$fpfSelect)
+      
+  
+      perfUplift <- perfUplift
+      propUplift <- propUplift
+      ogip1$x <- -0.2931903
+      ogip1$y <-  -0.4256987
+      ogip1$z <- 0.2750021
+      ogip1$logPPF <- log(ogip1$ppf)
+      ogip1$EUR <- exp(predict(propUplift, ogip1))
+      ogip1$EUR <- ogip1$EUR*ogip1$risk
+      ogip1$perfRisk <- perfUplift$coefficients[1] +
+        perfUplift$coefficients[2]*ogip1$perf +
+        perfUplift$coefficients[3]*(ogip1$perf**2)
+      ogip1$EUR <- ogip1$EUR*ogip1$perfRisk
+      ogip1$oilEUR <- ogip1$EUR*(1-ogip1$gasFrac)
+      ogip1$gasEUR <- (ogip1$EUR-ogip1$oilEUR)*20
+      ogip1$z <- ogip1$EUR
+      df4 <- ogip1
+      rm(ogip1)
+      values$df4 <- df4
+      
+      if(input$mapMetric == 'MCFE') {
+        df4$z <- df4$z*20
+      }
+      
+      
+      df <- df4 %>% select(longitude = avLong, latitude=avLat, z)
+      df <- df %>% arrange(longitude, latitude)
+      d2d = interp(df$longitude, df$latitude, df$z)
+      contour(d2d$x, d2d$y, d2d$z)
+      
+      lines = contourLines(x=d2d$x, y=d2d$y, z=d2d$z, nlevels=8)
+      
+      d1 <- sapply(1:length(lines),function(i) Polygon(as.matrix(cbind(lines[[i]]$x,lines[[i]]$y))))
+      d2 <- sapply(1:length(lines), function(i) Polygons(list(d1[[i]]),i))
+      
+      poly_data <- data.frame(Value = sapply(1:length(lines),function(i) lines[[i]]$level))
+      
+      dd2 <- SpatialPolygonsDataFrame(SpatialPolygons(d2),data=poly_data)
+      proj4string(dd2) <- CRS("+proj=longlat +datum=WGS84")
+      #values$dd2 <- dd2
+      
+      
+      
+      
+      
+      df <- df() %>% filter(subPlay %in% input$subPlay1) %>% filter(operator %in% input$operator1)
+      if(nrow(df)==0){
+        LONGITUDE1 <- mean(df()$avLong)
+        LATITUDE1 <- mean(df()$avLat)
+      } else {
+        LONGITUDE1 <- mean(df$avLong)
+        LATITUDE1 <- mean(df$avLat)
+      }
+      
+      values$LONGITUDE1 <- LONGITUDE1
+      values$LATITUDE1 <- LATITUDE1
+      #dd2 <- values$dd2
+      
+      factpal2 = colorFactor(rev(brewer.pal(n=11, name='Spectral')), dd2$Value)
+      
+      values$dd2 <- dd2
+      values$factpal2 <- factpal2
+      #dataMap <- wellData %>% filter(subBasin %in% dfy$subBasin) %>%
+      #  filter(reservoir %in% dfy$reservoir)# %>% filter(subBasin %in% input$subBasinSelect)
+      #dataMap$locationID <- as.character(dataMap$API)
+      #dataMap$secondLocationID <- paste(as.character(dataMap$locationID), "_selectedLayer", sep="")
+      #values$dataMap <- dataMap
+      if(input$mapMetric == 'BOE'){
+        
+        
+        values$map <- leaflet() %>% 
+          addTiles(group = "OSM (default)") %>%
+          addProviderTiles("Esri.WorldTopoMap", group = "ESRI") %>%
+          addProviderTiles("Stamen.Toner", group = "Toner") %>%
+          addProviderTiles("Stamen.TonerLite", group = "Toner Lite") %>%
+          addLayersControl(baseGroups = c("OSM (default)", "ESRI", "Toner", "Toner Lite"),
+                           options = layersControlOptions(collapsed = FALSE)) %>%
+          #addCircles(data = dataMap, radius = 1, lat = dataMap$avLat, lng=dataMap$avLong, fillColor = NA, fillOpacity = 0.01,
+          #           color = 'green', weight = 0.1, stroke = T, layerId = as.character(dataMap$locationID), highlightOptions = highlightOptions(
+          #             color = 'mediumseagreen', opacity = 1, weight = 2, bringToFront = TRUE)) %>%
+          addPolygons(
+            data = dd2,
+            stroke=FALSE, fillOpacity = 0.8, smoothFactor = 0.5,
+            color='grey',
+            fillColor = ~factpal2(Value),
+            layerId=dd2@data$Value) %>%
+          leaflet::addLegend(pal=factpal2, values=dd2$Value, opacity = 0.7, title='Normalized EUR per Well (20:1) MBOE', position = 'bottomright') %>%
+          setView(lng = mean(LONGITUDE1),
+                  lat = mean(LATITUDE1), zoom = 10)%>%
+          addDrawToolbar(
+            targetGroup='Selected',
+            polylineOptions=FALSE,
+            markerOptions = FALSE,
+            polygonOptions = drawPolygonOptions(shapeOptions=drawShapeOptions(fillOpacity = 0
+                                                                              ,color = 'white'
+                                                                              ,weight = 3)),
+            rectangleOptions = drawRectangleOptions(shapeOptions=drawShapeOptions(fillOpacity = 0
+                                                                                  ,color = 'white'
+                                                                                  ,weight = 3)),
+            circleOptions = drawCircleOptions(shapeOptions = drawShapeOptions(fillOpacity = 0
+                                                                              ,color = 'white'
+                                                                              ,weight = 3)),
+            editOptions = editToolbarOptions(edit = FALSE, selectedPathOptions = selectedPathOptions())) # %>%
+        #addLayersControl(overlayGroups = c('draw'), options =
+        #                  layersControlOptions(collapsed=FALSE))
+      } else{
+        
+        values$map <- leaflet() %>% 
+          addTiles(group = "OSM (default)") %>%
+          addProviderTiles("Esri.WorldTopoMap", group = "ESRI") %>%
+          addProviderTiles("Stamen.Toner", group = "Toner") %>%
+          addProviderTiles("Stamen.TonerLite", group = "Toner Lite") %>%
+          addLayersControl(baseGroups = c("OSM (default)", "ESRI", "Toner", "Toner Lite"),
+                           options = layersControlOptions(collapsed = FALSE)) %>%
+          #addCircles(data = dataMap, radius = 1, lat = dataMap$avLat, lng=dataMap$avLong, fillColor = NA, fillOpacity = 0.01,
+          #           color = 'green', weight = 0.1, stroke = T, layerId = as.character(dataMap$locationID), highlightOptions = highlightOptions(
+          #             color = 'mediumseagreen', opacity = 1, weight = 2, bringToFront = TRUE)) %>%
+          addPolygons(
+            data = dd2,
+            stroke=FALSE, fillOpacity = 0.8, smoothFactor = 0.5,
+            color='grey',
+            fillColor = ~factpal2(Value),
+            layerId=dd2@data$Value) %>%
+          leaflet::addLegend(pal=factpal2, values=dd2$Value, opacity = 0.7, title='Normalized EUR per Well (20:1) MMCFE', position = 'bottomright') %>%
+          setView(lng = mean(LONGITUDE1),
+                  lat = mean(LATITUDE1), zoom = 10)%>%
+          addDrawToolbar(
+            targetGroup='Selected',
+            polylineOptions=FALSE,
+            markerOptions = FALSE,
+            polygonOptions = drawPolygonOptions(shapeOptions=drawShapeOptions(fillOpacity = 0
+                                                                              ,color = 'white'
+                                                                              ,weight = 3)),
+            rectangleOptions = drawRectangleOptions(shapeOptions=drawShapeOptions(fillOpacity = 0
+                                                                                  ,color = 'white'
+                                                                                  ,weight = 3)),
+            circleOptions = drawCircleOptions(shapeOptions = drawShapeOptions(fillOpacity = 0
+                                                                              ,color = 'white'
+                                                                              ,weight = 3)),
+            editOptions = editToolbarOptions(edit = FALSE, selectedPathOptions = selectedPathOptions())) # %>%
+        #addLayersControl(overlayGroups = c('draw'), options =
+        #                    layersControlOptions(collapsed=FALSE))
+      }
+      
+      df <- df() 
+      x <- paste0(levels(as.factor(df$state)))
+      
+      stateSelect <- state2abbr(x)
+      
+      stateSelect <- as.data.frame(stateSelect)
+      
+      stateSelect <- stateSelect %>% rowwise() %>% mutate(state1 = lookup_code(stateSelect))
+      state1 <- stringr::str_sub(stateSelect$state1, -4, -3)
+      
+      leases1 <- leases() %>% filter(operator %in% input$operator1) %>% filter(subPlay %in% input$subPlay1) %>% filter(!duplicated(oneSecLocation))
+      values$leases1 <- leases1
+      me <- countyData
+      me <- me[me@data$STATEFP %in% state1,]
+      
+      
+      values$me <- me
+      df <- df %>% filter(subPlay %in% input$subPlay1) %>% filter(operator %in% input$operator1)
+      if(nrow(df) == 0){
+        values$map1 <- values$map %>%
+          addPolygons(
+            data =me, 
+            weight = 1,
+            color = "black",
+            fill = NA) %>%
+          #addPolygons(data = df$geom) %>%
+          addCircles(lng = leases1$long, lat = leases1$lat, color = 'yellow', radius = 804)
+      } else {
+        values$map1 <- values$map %>%
+          addPolygons(
+            data =me, 
+            weight = 1,
+            color = "black",
+            fill = NA) %>%
+          addCircles(lng = leases1$long, lat = leases1$lat, color = 'yellow', radius = 804) %>%
+          addPolygons(data = df$geom, color = 'green')
+      }
+    }
+    
+  })
+  
+  observeEvent(input$mapMetric, {
+    if(is.null(values$map)){
+      NULL
+    } else {
+      df4 <- values$df4
+      
+      if(input$mapMetric == 'MCFE') {
+        df4$z <- df4$z*20
+      }
+      
+      
+      df <- df4 %>% select(longitude = avLong, latitude=avLat, z)
+      df <- df %>% arrange(longitude, latitude)
+      d2d = interp(df$longitude, df$latitude, df$z)
+      contour(d2d$x, d2d$y, d2d$z)
+      
+      lines = contourLines(x=d2d$x, y=d2d$y, z=d2d$z, nlevels=8)
+      
+      d1 <- sapply(1:length(lines),function(i) Polygon(as.matrix(cbind(lines[[i]]$x,lines[[i]]$y))))
+      d2 <- sapply(1:length(lines), function(i) Polygons(list(d1[[i]]),i))
+      
+      poly_data <- data.frame(Value = sapply(1:length(lines),function(i) lines[[i]]$level))
+      
+      dd2 <- SpatialPolygonsDataFrame(SpatialPolygons(d2),data=poly_data)
+      proj4string(dd2) <- CRS("+proj=longlat +datum=WGS84")
+      #values$dd2 <- dd2
+      
+      
+      
+      df <- df() %>% filter(subPlay %in% input$subPlay1) %>% filter(operator %in% input$operator1)
+      
+      
+      LONGITUDE1 <- values$LONGITUDE1
+      LATITUDE1 <- values$LATITUDE1 
+      
+      
+      factpal2 = colorFactor(rev(brewer.pal(n=11, name='Spectral')), dd2$Value)
+      
+      values$dd2 <- dd2
+      values$factpal2 <- factpal2
+      #dataMap <- values$dataMap
+      
+      if(input$mapMetric == 'BOE'){
+        values$map <- leaflet() %>% 
+          addTiles(group = "OSM (default)") %>%
+          addProviderTiles("Esri.WorldTopoMap", group = "ESRI") %>%
+          addProviderTiles("Stamen.Toner", group = "Toner") %>%
+          addProviderTiles("Stamen.TonerLite", group = "Toner Lite") %>%
+          addLayersControl(baseGroups = c("OSM (default)", "ESRI", "Toner", "Toner Lite"),
+                           options = layersControlOptions(collapsed = FALSE)) %>%
+          #addCircles(data = dataMap, radius = 1, lat = dataMap$avLat, lng=dataMap$avLong, fillColor = NA, fillOpacity = 0.01,
+          #           color = 'green', weight = 0.1, stroke = T, layerId = as.character(dataMap$locationID), highlightOptions = highlightOptions(
+          #             color = 'mediumseagreen', opacity = 1, weight = 2, bringToFront = TRUE)) %>%
+          addPolygons(
+            data = dd2,
+            stroke=FALSE, fillOpacity = 0.8, smoothFactor = 0.5,
+            color='grey',
+            fillColor = ~factpal2(Value),
+            layerId=dd2@data$Value) %>%
+          leaflet::addLegend(pal=factpal2, values=dd2$Value, opacity = 0.7, title='Normalized EUR per Well (20:1) MBOE', position = 'bottomright') %>%
+          setView(lng = mean(LONGITUDE1),
+                  lat = mean(LATITUDE1), zoom = 10)%>%
+          addDrawToolbar(
+            targetGroup='Selected',
+            polylineOptions=FALSE,
+            markerOptions = FALSE,
+            polygonOptions = drawPolygonOptions(shapeOptions=drawShapeOptions(fillOpacity = 0
+                                                                              ,color = 'white'
+                                                                              ,weight = 3)),
+            rectangleOptions = drawRectangleOptions(shapeOptions=drawShapeOptions(fillOpacity = 0
+                                                                                  ,color = 'white'
+                                                                                  ,weight = 3)),
+            circleOptions = drawCircleOptions(shapeOptions = drawShapeOptions(fillOpacity = 0
+                                                                              ,color = 'white'
+                                                                              ,weight = 3)),
+            editOptions = editToolbarOptions(edit = FALSE, selectedPathOptions = selectedPathOptions())) # %>%
+        #addLayersControl(overlayGroups = c('draw'), options =
+        #                  layersControlOptions(collapsed=FALSE))
+      } else{
+        values$map <- leaflet() %>% 
+          addTiles(group = "OSM (default)") %>%
+          addProviderTiles("Esri.WorldTopoMap", group = "ESRI") %>%
+          addProviderTiles("Stamen.Toner", group = "Toner") %>%
+          addProviderTiles("Stamen.TonerLite", group = "Toner Lite") %>%
+          addLayersControl(baseGroups = c("OSM (default)", "ESRI", "Toner", "Toner Lite"),
+                           options = layersControlOptions(collapsed = FALSE)) %>%
+          #addCircles(data = dataMap, radius = 1, lat = dataMap$avLat, lng=dataMap$avLong, fillColor = NA, fillOpacity = 0.01,
+          #           color = 'green', weight = 0.1, stroke = T, layerId = as.character(dataMap$locationID), highlightOptions = highlightOptions(
+          #             color = 'mediumseagreen', opacity = 1, weight = 2, bringToFront = TRUE)) %>%
+          addPolygons(
+            data = dd2,
+            stroke=FALSE, fillOpacity = 0.8, smoothFactor = 0.5,
+            color='grey',
+            fillColor = ~factpal2(Value),
+            layerId=dd2@data$Value) %>%
+          leaflet::addLegend(pal=factpal2, values=dd2$Value, opacity = 0.7, title='Normalized EUR per Well (20:1) MMCFE', position = 'bottomright') %>%
+          setView(lng = mean(LONGITUDE1),
+                  lat = mean(LATITUDE1), zoom = 10)%>%
+          addDrawToolbar(
+            targetGroup='Selected',
+            polylineOptions=FALSE,
+            markerOptions = FALSE,
+            polygonOptions = drawPolygonOptions(shapeOptions=drawShapeOptions(fillOpacity = 0
+                                                                              ,color = 'white'
+                                                                              ,weight = 3)),
+            rectangleOptions = drawRectangleOptions(shapeOptions=drawShapeOptions(fillOpacity = 0
+                                                                                  ,color = 'white'
+                                                                                  ,weight = 3)),
+            circleOptions = drawCircleOptions(shapeOptions = drawShapeOptions(fillOpacity = 0
+                                                                              ,color = 'white'
+                                                                              ,weight = 3)),
+            editOptions = editToolbarOptions(edit = FALSE, selectedPathOptions = selectedPathOptions())) # %>%
+        #addLayersControl(overlayGroups = c('draw'), options =
+        #                   layersControlOptions(collapsed=FALSE))
+      }
+      
+      
+      me <- values$me
+      leases1 <- values$leases1
+      
+      df <- df() %>% filter(subPlay %in% input$subPlay1) %>% filter(operator %in% input$operator1)
+      if(nrow(df) == 0){
+        values$map1 <- values$map %>%
+          addPolygons(
+            data =me, 
+            weight = 1,
+            color = "black",
+            fill = NA) %>%
+          #addPolygons(data = df$geom) %>%
+          addCircles(lng = leases1$long, lat = leases1$lat, color = 'yellow', radius = 804)
+      } else {
+        values$map1 <- values$map %>%
+          addPolygons(
+            data =me, 
+            weight = 1,
+            color = "black",
+            fill = NA) %>%
+          addCircles(lng = leases1$long, lat = leases1$lat, color = 'yellow', radius = 804) %>%
+          addPolygons(data = df$geom, color = 'green')
+      }
+    }
+
+    
+    
+  })
+
+  output$map <- renderLeaflet({
+    if(is.null(values$map)){
+      NULL
+    } else {
+      values$map1
+    }
+  })
 }
 
 shinyApp(ui, server)
