@@ -29,6 +29,7 @@ library(RColorBrewer)
 library(rgdal)
 library(leaflet)
 library(leaflet.extras)
+library(purrr)
 
 options(shiny.maxRequestSize=30*1024^2)
 options(stringsAsFactors = FALSE)
@@ -39,7 +40,7 @@ data1$qiOil[data1$oilEUR == 0] <- 0.001
 data1$qiGas[data1$gasEUR == 0] <- 0.001
 data2 <- readRDS('./data/pdp.rds')
 
-opList <- readRDS('./data/opList.rds')# %>% filter(operator != 'Artex Oil')
+opList <- readRDS('./data/opList.rds') #%>% filter(operator != 'Endeavor Energy Resources')
 wellData <- readRDS('./data/assetSummary.rds')
 costData <- readRDS('./data/costData.rds')
 countyData <- readRDS('./data/countyData.rds')
@@ -60,7 +61,7 @@ op1 <- c("Antero Resources", "Apache", "Approach Resources", "Baytex Energy",
          "Centennial Resource", "Chaparral Energy", "Chesapeake Energy",
          "Chevron", "Cimarex Energy", "CNX Resources", "Comstock Resources",
          "Concho Resources", "ConocoPhillips", "Continental Resources",
-         "Crescent Point", "Devon Energy", "Diamondback Energy Inc", "Eclipse Resources",
+         "Crescent Point", "Devon Energy", "Diamondback Energy Inc", "Eclipse Resources", 
          "Enerplus", "EOG Resources", "EP Energy", "EQT Corporation",
          "Equinor", "EXCO Resources", "Extraction Oil & Gas", "ExxonMobil",
          "Gulfport", "Halcon Resources", "Hess Corporation", "HighPoint Resources",
@@ -2886,24 +2887,33 @@ server <- function(input, output, session) {
   })
   
   observeEvent(input$operator1, {
-    if(is.null(input$operator1)){
+    if(is.null(input$operator1)||input$operator1 == ''){
       NULL
     } else {
       df1 <- opList %>% filter(operator %in% input$operator1)
       updatePickerInput(session, 'plays',  choices = sort(unique(df1$id)), selected = sort(unique(df1$id))[1])
-      df1 <-leases() %>% filter(operator %in% input$operator1)
-      
-      updateRadioButtons(session, 'subPlay1', '', choices = sort(unique(df1$subPlay)))
+      # df1 <-leases() %>% filter(operator %in% input$operator1)
+      # #print(head(df1))
+      # if(nrow(df1)==0){
+      #   df1 <-df() %>% filter(operator %in% input$operator1)
+      # }
+      # print(1)
+      # updateRadioButtons(session, 'subPlay1', choices = sort(unique(df1$subPlay)))
+      # print(1.1)
     }
   })
   
   observeEvent(input$plays, {
-    if(is.null(input$plays)||input$plays == ''){
+    if(is.null(input$plays)||input$plays == ''||is.null(input$operator1)||input$operator1 == ''){
       NULL
     } else {
       df1 <-leases() %>% filter(operator %in% input$operator1)
-      
-      updateRadioButtons(session, 'subPlay1', '', choices = sort(unique(df1$subPlay)))
+      print(2.1)
+      if(nrow(df1)==0){
+        df1 <-df() %>% filter(operator %in% input$operator1)
+      }
+      print(2.2)
+      updateRadioButtons(session, 'subPlay1', choices = sort(unique(df1$subPlay)))
     }
   })
   
@@ -2911,6 +2921,7 @@ server <- function(input, output, session) {
     if(is.null(input$plays)||input$plays == ''){
       NULL
     } else {
+      #print(head(as.data.frame(wellData[[input$plays]]$leases)))
       as.data.frame(wellData[[input$plays]]$leases)
     }
   })
@@ -2919,6 +2930,7 @@ server <- function(input, output, session) {
     if(is.null(input$plays)||input$plays == ''){
       NULL
     } else {
+      #print(head(as.data.frame(wellData[[input$plays]]$df)))
       as.data.frame(wellData[[input$plays]]$df)
     }
   })
@@ -2927,19 +2939,24 @@ server <- function(input, output, session) {
     if(is.null(input$plays)||input$plays == ''){
       NULL
     } else {
+      #print(head(as.data.frame(wellData[[input$plays]]$ogip)))
       as.data.frame(wellData[[input$plays]]$ogip)
     }
   })
   
   df2 <- reactive(
-    df() %>% filter(operator %in% input$operator1)
+    if(is.null(input$plays)||input$plays == ''){
+      NULL
+    } else {
+      df() %>% filter(operator %in% input$operator1)
+    }
   )
   
   output$acres_plot <- renderHighchart({
-    
+
     df <- leases() %>% filter(operator %in% input$operator1) %>% filter(!duplicated(oneSecLocation)) %>%
       group_by(subPlay) %>% summarise(acres = n()*640) %>% ungroup() %>% select(subPlay, acres) %>% filter(!is.na(subPlay))
-    
+
     totalAcres <- sum(df$acres)
     df <- df %>%
       mutate(acres = round(acres/sum(acres)*100,1))
@@ -4641,12 +4658,82 @@ server <- function(input, output, session) {
   })
   
   
+  latBinStart <- 24.116123
+  longBinStart <- -121.496311
+  
+  fn <- function(x, y){
+    distHaversine(c(x, y), c(x, latBinStart))*3.28084
+    
+  }
+  fn1 <- function(x, y){
+    distHaversine(c(x, y), c(longBinStart, y))*3.28084
+  }
+  
+  fnx <- function(y){
+    distHaversine(c(longBinStart, y), c(longBinStart, latBinStart))*3.28084
+    
+  }
+  
   observe({
     if(is.null(input$subPlay1)||input$subPlay1 == ''){
       NULL
     } else {
       ogip1 <- ogip()
-      ogip1 <- ogip1 %>% mutate(threeSecLocation = paste(round(distLat/(5280*3), digits=0),',', (round(distLong/(5280*3),digits=0)),sep=''))
+      ogip1 <- ogip1 %>% mutate(threeSecLocation = paste(round(distLat/(5280*3), digits=0),',', (round(distLong/(5280*3),digits=0)),sep=''),
+                                twnRngLocation = paste(round(distLat/(5280*6), digits=0),',', (round(distLong/(5280*6),digits=0)),sep=''))
+      
+      df4 <-ogip1[,c('avLong', 'avLat', 'risk', 'twnRngLocation')] %>% group_by(twnRngLocation) %>% summarise_all(mean, na.rm=TRUE)
+      df4 <- df4 %>% select(longitude = avLong, latitude = avLat, risk, twnRngLocation)
+      #names(df4) <- c('longitude', 'latitude', 'risk', 'twnRngLocation')
+
+
+      df5 <- df4 %>% group_by(twnRngLocation) %>% summarise(latitude = mean(latitude), longitude = mean(longitude))
+
+      df51 <- df5 %>% mutate(latitude = latitude - 0.5, longitude = longitude - 0.5)
+      df52 <- df5 %>% mutate(latitude = latitude + 0.5, longitude = longitude - 0.5)
+      df53 <- df5 %>% mutate(latitude = latitude - 0.5, longitude = longitude + 0.5)
+      df54 <- df5 %>% mutate(latitude = latitude + 0.5, longitude = longitude + 0.5)
+
+      df51 <- rbind(df51, df52, df53, df54)
+
+      k <- unique(df51$latitude)
+
+
+      list1 <- mapply(fnx, k)
+      list1 <- as.data.frame(list1)
+      names(list1) <- 'distLat'
+      list1$latitude <- k
+      df51 <- merge(df51, list1, by='latitude', all.x=TRUE)
+      #print(head(df51))
+
+      df51 <- df51 %>%  mutate(distLong = pmap_dbl(list(x = longitude, y = latitude),fn1))
+      df51 <- as.data.frame(df51)
+
+
+      df51 <- df51 %>% mutate(twnRngLocation = paste(round(distLat/(5280*6), digits=0),',', (round(distLong/(5280*6),digits=0)),sep='')) %>%
+        group_by(twnRngLocation) %>% summarise(latitude = mean(latitude), longitude = mean(longitude)) %>% filter(!twnRngLocation %in% df5$twnRngLocation)
+      #print(head(df51))
+      df5 <- df51
+      df5$risk <- -0.1
+      df5 <- df5[,c('longitude', 'latitude', 'risk')]
+      #df4$risk <- -0.1
+
+      #print(head(df5))
+      #print(head(df4))
+      df4 <- df5
+      #df4 <- rbind(df4[,c('longitude', 'latitude', 'risk')], df5)
+      df5 <- df4[1:4,]
+      df5$latitude[1:2] <- max(ogip1$avLat)+.1
+      df5$latitude[3:4] <- min(ogip1$avLat)-.1
+      df5$longitude[2:3] <- max(ogip1$avLong)+.1
+      df5$longitude[c(1,4)] <- min(ogip1$avLong)-.1
+      df5$risk <- -0.1
+      df4 <- rbind(df4, df5)
+      names(df4) <- c('avLong', 'avLat', 'z')
+      df4 <- df4 %>% distinct()
+      df4 <- df4 %>% filter(!duplicated(paste0(avLong, avLat)))
+      #print(head(df4))
+      
       ogip1 <- ogip1 %>% group_by(threeSecLocation) %>% summarise(avLat =mean(avLat), avLong = mean(avLong), risk = mean(risk, na.rm=TRUE), gasFrac = mean(gasFrac, na.rm=TRUE))
       ogip1$perf <- as.numeric(capexValues1()$perfSelect)
       ogip1$ppf <- as.numeric(capexValues1()$ppfSelect)
@@ -4668,9 +4755,16 @@ server <- function(input, output, session) {
       ogip1$oilEUR <- ogip1$EUR*(1-ogip1$gasFrac)
       ogip1$gasEUR <- (ogip1$EUR-ogip1$oilEUR)*20
       ogip1$z <- ogip1$EUR
-      df4 <- ogip1
+      #print(head(ogip1))
+      df4 <- rbind(ogip1[,c('avLong', 'avLat', 'z')],df4)
+      #df4 <- ogip1
       rm(ogip1)
+      #print(head(df4))
+      df4$z[df4$z > 1500] <- 1500
+      df4 <- df4 %>% distinct()
+      df4 <- df4  %>% filter(!duplicated(paste0(avLong, avLat)))
       values$df4 <- df4
+      
       
       if(input$mapMetric == 'MCFE') {
         df4$z <- df4$z*20
@@ -4679,8 +4773,10 @@ server <- function(input, output, session) {
       
       df <- df4 %>% select(longitude = avLong, latitude=avLat, z)
       df <- df %>% arrange(longitude, latitude)
+      df <- df %>% filter(!duplicated(paste0(longitude, latitude)))
+      #print(head(df))
       d2d = interp(df$longitude, df$latitude, df$z)
-      contour(d2d$x, d2d$y, d2d$z)
+      #contour(d2d$x, d2d$y, d2d$z)
       
       lines = contourLines(x=d2d$x, y=d2d$y, z=d2d$z, nlevels=8)
       
@@ -4698,6 +4794,7 @@ server <- function(input, output, session) {
       
       
       df <- df() %>% filter(subPlay %in% input$subPlay1) %>% filter(operator %in% input$operator1)
+      print(head(df))
       if(nrow(df)==0){
         LONGITUDE1 <- mean(df()$avLong)
         LATITUDE1 <- mean(df()$avLat)
@@ -4851,7 +4948,7 @@ server <- function(input, output, session) {
       df <- df4 %>% select(longitude = avLong, latitude=avLat, z)
       df <- df %>% arrange(longitude, latitude)
       d2d = interp(df$longitude, df$latitude, df$z)
-      contour(d2d$x, d2d$y, d2d$z)
+      #contour(d2d$x, d2d$y, d2d$z)
       
       lines = contourLines(x=d2d$x, y=d2d$y, z=d2d$z, nlevels=8)
       
