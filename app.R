@@ -662,7 +662,7 @@ ui <- argonDashPage(
             argonColumn(
               width = 12,
               argonCard(
-                title = 'Sub-Play Assumtions',
+                title = 'Sub-Play Assumptions',
                 shadow = TRUE,
                 border_level = 1,
                 width = 12,
@@ -885,7 +885,7 @@ ui <- argonDashPage(
           tabName = 'map',
           awesomeRadio('mapMetric', label = 'Fluid Equivalent', choices = c('BOE', 'MCFE')),
           leafletOutput('map', height = 800),
-          argonH1(display = 3, 'Sticks are Selected Operator/SubPlay Locations, Circles are that Operators Acreage within Subplay')
+          argonH1(display = 6, 'Sticks are Selected Operator/SubPlay Locations, Circles are that Operators Acreage within Subplay')
         )
       )
         
@@ -1687,7 +1687,7 @@ server <- function(input, output, session) {
   
   
   
-      print(head(df))
+      #print(head(df))
       #values$oilEUR <- as.integer(sum(df$Oil)/1000)
       #values$gasEUR <- as.integer(sum(df$Gas)/1000)
       #print(head(df))
@@ -1793,7 +1793,7 @@ server <- function(input, output, session) {
       df$capex <- 0
       
       df <- df %>% arrange(desc(Date))
-      print('1712')
+      #print('1712')
       min1 <- which(df$NOCF >0)
       min1 <- min1[1]
       if(is.na(min1)){
@@ -2908,11 +2908,11 @@ server <- function(input, output, session) {
       NULL
     } else {
       df1 <-leases() %>% filter(operator %in% input$operator1)
-      print(2.1)
+      #print(2.1)
       if(nrow(df1)==0){
         df1 <-df() %>% filter(operator %in% input$operator1)
       }
-      print(2.2)
+      #print(2.2)
       updateRadioButtons(session, 'subPlay1', choices = sort(unique(df1$subPlay)))
     }
   })
@@ -2953,36 +2953,44 @@ server <- function(input, output, session) {
   )
   
   output$acres_plot <- renderHighchart({
-
+    if(is.null(input$plays)||input$plays == ''){
+      NULL
+    } else {
     df <- leases() %>% filter(operator %in% input$operator1) %>% filter(!duplicated(oneSecLocation)) %>%
       group_by(subPlay) %>% summarise(acres = n()*640) %>% ungroup() %>% select(subPlay, acres) %>% filter(!is.na(subPlay))
-
-    totalAcres <- sum(df$acres)
-    df <- df %>%
-      mutate(acres = round(acres/sum(acres)*100,1))
-    #print(head(df))
-    cols <- c( '#00a4e3', '#adafb2','#0D1540','#06357a',  '#a31c37', '#d26400', '#eaa814',
-               '#5c1848', '#786592', '#ff4e50', '#027971', '#008542', '#5c6d00')
-    highchart() %>%
-      hc_add_series(df, 'pie', hcaes(name = subPlay, y = acres), name = 'Percent')  %>%
-      hc_plotOptions(
-        series = list(
-          showInLegend = FALSE,
-          pointFormat = "{point.y}%"
-        )) %>%
-      hc_title(
-        text = paste0("Percent of Total Acreage By Subplay, Total Acres: <span style=\"color:#00a4e3\">",totalAcres,"</span>"),
-        useHTML = TRUE) %>%
-      hc_subtitle(text = '<a href="https://www.woodmac.com/research/lens/lens-direct/">Source: P2</a>', useHTML=TRUE, align = 'right') %>%
-      hc_tooltip(table = TRUE, sort = TRUE) %>%
-      #hc_xAxis(title = list(text = '<b>First Production Year</b>')) %>%
-      #hc_yAxis(title = list(text = '<b>Six Month BOE Per Ft (20:1 Gas, 25% NGL)</b>')) %>%
-      hc_credits(
-        enabled = TRUE,
-        text = "Powered by Highcharts",
-        href = "https://www.highcharts.com/") %>%
-      hc_colors(cols) %>%
-      hc_exporting(enabled = TRUE, filename = 'acresBySubplay')
+    
+    print(head(df))
+    if(nrow(df) == 0){
+      NULL
+    } else {
+        totalAcres <- sum(df$acres)
+        df <- df %>%
+          mutate(acres = round(acres/sum(acres)*100,1))
+        #print(head(df))
+        cols <- c( '#00a4e3', '#adafb2','#0D1540','#06357a',  '#a31c37', '#d26400', '#eaa814',
+                   '#5c1848', '#786592', '#ff4e50', '#027971', '#008542', '#5c6d00')
+        highchart() %>%
+          hc_add_series(df, 'pie', hcaes(name = subPlay, y = acres), name = 'Percent')  %>%
+          hc_plotOptions(
+            series = list(
+              showInLegend = FALSE,
+              pointFormat = "{point.y}%"
+            )) %>%
+          hc_title(
+            text = paste0("Percent of Total Acreage By Subplay, Total Acres: <span style=\"color:#00a4e3\">",totalAcres,"</span>"),
+            useHTML = TRUE) %>%
+          hc_subtitle(text = '<a href="https://www.woodmac.com/research/lens/lens-direct/">Source: P2</a>', useHTML=TRUE, align = 'right') %>%
+          hc_tooltip(table = TRUE, sort = TRUE) %>%
+          #hc_xAxis(title = list(text = '<b>First Production Year</b>')) %>%
+          #hc_yAxis(title = list(text = '<b>Six Month BOE Per Ft (20:1 Gas, 25% NGL)</b>')) %>%
+          hc_credits(
+            enabled = TRUE,
+            text = "Powered by Highcharts",
+            href = "https://www.highcharts.com/") %>%
+          hc_colors(cols) %>%
+          hc_exporting(enabled = TRUE, filename = 'acresBySubplay')
+    }
+    }
   })
   
   output$percentDev <- renderHighchart({
@@ -4794,7 +4802,7 @@ server <- function(input, output, session) {
       
       
       df <- df() %>% filter(subPlay %in% input$subPlay1) %>% filter(operator %in% input$operator1)
-      print(head(df))
+      #print(head(df))
       if(nrow(df)==0){
         LONGITUDE1 <- mean(df()$avLong)
         LATITUDE1 <- mean(df()$avLat)
