@@ -61,7 +61,7 @@ op1 <- c("Antero Resources", "Apache", "Approach Resources", "Baytex Energy",
          "Centennial Resource", "Chaparral Energy", "Chesapeake Energy",
          "Chevron", "Cimarex Energy", "CNX Resources", "Comstock Resources",
          "Concho Resources", "ConocoPhillips", "Continental Resources",
-         "Crescent Point", "Devon Energy", "Diamondback Energy Inc", "Eclipse Resources", 
+         "Crescent Point", "Devon Energy", "Diamondback Energy Inc", "Eclipse Resources", "Endeavor Energy Resources",
          "Enerplus", "EOG Resources", "EP Energy", "EQT Corporation",
          "Equinor", "EXCO Resources", "Extraction Oil & Gas", "ExxonMobil",
          "Gulfport", "Halcon Resources", "Hess Corporation", "HighPoint Resources",
@@ -139,6 +139,24 @@ css <- HTML(
         transform:rotateX(180deg);
     }
     #pdpTable > .dataTables_wrapper.no-footer > .dataTables_scroll > .dataTables_scrollBody table{
+        transform:rotateX(180deg);
+    }
+  #pdpMonthly > .dataTables_wrapper.no-footer > .dataTables_scroll > .dataTables_scrollBody {
+        transform:rotateX(180deg);
+    }
+    #pdpMonthly > .dataTables_wrapper.no-footer > .dataTables_scroll > .dataTables_scrollBody table{
+        transform:rotateX(180deg);
+    }
+  #devMonthly > .dataTables_wrapper.no-footer > .dataTables_scroll > .dataTables_scrollBody {
+        transform:rotateX(180deg);
+    }
+    #devMonthly > .dataTables_wrapper.no-footer > .dataTables_scroll > .dataTables_scrollBody table{
+        transform:rotateX(180deg);
+    }
+  #allMonthly > .dataTables_wrapper.no-footer > .dataTables_scroll > .dataTables_scrollBody {
+        transform:rotateX(180deg);
+    }
+    #allMonthly > .dataTables_wrapper.no-footer > .dataTables_scroll > .dataTables_scrollBody table{
         transform:rotateX(180deg);
     }"
 )
@@ -259,29 +277,29 @@ ui <- argonDashPage(
                   ),
                   argonColumn(
                     width = 5,
-                    numericInput('wti1', 'Year 1 Oil Price, $/bbl', value = 35, min = 0),
-                    numericInput('wti2', 'Year 2 Oil Price, $/bbl', value = 35, min = 0),
-                    numericInput('wti3', 'Year 3 Oil Price, $/bbl', value = 35, min = 0),
-                    numericInput('wti4', 'Year 4 Oil Price, $/bbl', value = 35, min = 0),
-                    numericInput('wti5', 'Year 5 Oil Price, $/bbl', value = 35, min = 0),
-                    numericInput('wti6', 'Year 6 Oil Price, $/bbl', value = 35, min = 0),
-                    numericInput('wti7', 'Year 7 Oil Price, $/bbl', value = 35, min = 0),
-                    numericInput('wti8', 'Year 8 Oil Price, $/bbl', value = 35, min = 0),
-                    numericInput('wti9', 'Year 9 Oil Price, $/bbl', value = 35, min = 0),
-                    numericInput('wti10', 'Year 10 Oil Price, $/bbl', value = 35, min = 0)
+                    numericInput('wti1', 'Year 1 Oil Price, $/bbl', value = 36, min = 0),
+                    numericInput('wti2', 'Year 2 Oil Price, $/bbl', value = 39, min = 0),
+                    numericInput('wti3', 'Year 3 Oil Price, $/bbl', value = 42, min = 0),
+                    numericInput('wti4', 'Year 4 Oil Price, $/bbl', value = 48.66, min = 0),
+                    numericInput('wti5', 'Year 5 Oil Price, $/bbl', value = 50.87, min = 0),
+                    numericInput('wti6', 'Year 6 Oil Price, $/bbl', value = 47, min = 0),
+                    numericInput('wti7', 'Year 7 Oil Price, $/bbl', value = 47, min = 0),
+                    numericInput('wti8', 'Year 8 Oil Price, $/bbl', value = 47, min = 0),
+                    numericInput('wti9', 'Year 9 Oil Price, $/bbl', value = 47, min = 0),
+                    numericInput('wti10', 'Year 10 Oil Price, $/bbl', value = 47, min = 0)
                     ),
                   argonColumn(
                     width = 5,
-                    numericInput('hh1', 'Year 1 Gas Price, $/mcf', value = 2, min = 0),
-                    numericInput('hh2', 'Year 2 Gas Price, $/mcf', value = 2, min = 0),
-                    numericInput('hh3', 'Year 3 Gas Price, $/mcf', value = 2, min = 0),
-                    numericInput('hh4', 'Year 4 Gas Price, $/mcf', value = 2, min = 0),
-                    numericInput('hh5', 'Year 5 Gas Price, $/mcf', value = 2, min = 0),
-                    numericInput('hh6', 'Year 6 Gas Price, $/mcf', value = 2, min = 0),
-                    numericInput('hh7', 'Year 7 Gas Price, $/mcf', value = 2, min = 0),
-                    numericInput('hh8', 'Year 8 Gas Price, $/mcf', value = 2, min = 0),
-                    numericInput('hh9', 'Year 9 Gas Price, $/mcf', value = 2, min = 0),
-                    numericInput('hh10', 'Year 10 Gas Price, $/mcf', value = 2, min = 0)
+                    numericInput('hh1', 'Year 1 Gas Price, $/mcf', value = 2.11, min = 0),
+                    numericInput('hh2', 'Year 2 Gas Price, $/mcf', value = 2.43, min = 0),
+                    numericInput('hh3', 'Year 3 Gas Price, $/mcf', value = 2.43, min = 0),
+                    numericInput('hh4', 'Year 4 Gas Price, $/mcf', value = 2.69, min = 0),
+                    numericInput('hh5', 'Year 5 Gas Price, $/mcf', value = 2.81, min = 0),
+                    numericInput('hh6', 'Year 6 Gas Price, $/mcf', value = 2.6, min = 0),
+                    numericInput('hh7', 'Year 7 Gas Price, $/mcf', value = 2.6, min = 0),
+                    numericInput('hh8', 'Year 8 Gas Price, $/mcf', value = 2.6, min = 0),
+                    numericInput('hh9', 'Year 9 Gas Price, $/mcf', value = 2.6, min = 0),
+                    numericInput('hh10', 'Year 10 Gas Price, $/mcf', value = 2.6, min = 0)
                   )
               )
               )
@@ -516,7 +534,8 @@ ui <- argonDashPage(
           argonRow(
             numericInput('pdpDiscRate', 'Discount Rate, %', value = 10, min = 0),
             textOutput('pdpPV'),
-            DT::dataTableOutput('pdpTable')
+            DT::dataTableOutput('pdpTable'),
+            DT::dataTableOutput('pdpMonthly')
           )
         ),
         
@@ -600,7 +619,8 @@ ui <- argonDashPage(
               argonRow(
                 numericInput('pudDiscRate', 'Discount Rate, %', value = 20, min = 0),
                 textOutput('pudPV'),
-                DT::dataTableOutput('devTable')
+                DT::dataTableOutput('devTable'),
+                DT::dataTableOutput('devMonthly')
               )
             ),
         argonTabItem(
@@ -618,7 +638,8 @@ ui <- argonDashPage(
           argonRow(
             numericInput('allDiscRate', 'Discount Rate, %', value = 10, min = 0),
             textOutput('allPV'),
-            DT::dataTableOutput('allTable')
+            DT::dataTableOutput('allTable'),
+            DT::dataTableOutput('allMonthly')
           )
         ),
         argonTabItem(
@@ -2809,6 +2830,56 @@ server <- function(input, output, session) {
                     ))
     }
   })
+  
+  output$allMonthly <- DT::renderDataTable({
+    if(is.null(values$pdpFcst)||is.null(values$cfSummary)){
+      NULL
+    } else {
+      df1 <- values$pdpFcst
+      df2 <- values$cfSummary
+      
+      df1$Year <- year(df1$Date)
+      df2$Year <- year(df2$Date)
+      
+      df1 <- df1 %>% group_by(Date) %>% summarise(Oil = as.integer(sum(Oil)/1000), Gas = as.integer(sum(Gas)/1000), NGL = as.integer(sum(NGL)/1000),
+                                                  SalesGas = as.integer(sum(SalesGas)/1000), netOil = as.integer(sum(netOil)/1000),
+                                                  netGas = as.integer(sum(netGas)/1000), netNGL = as.integer(sum(netNGL)/1000),
+                                                  OilRevenue = as.integer(sum(OilRevenue)/1000),
+                                                  GasRevenue = as.integer(sum(GasRevenue)/1000), NGLRevenue = as.integer(sum(NGLRevenue)/1000),
+                                                  Revenue = as.integer(sum(Revenue)/1000), expense = as.integer(sum(expense)/1000), tax = as.integer(sum(tax)/1000),
+                                                  NOCF = as.integer(sum(NOCF)/1000), capex = as.integer(sum(capex)/1000), FCF = as.integer(sum(FCF)/1000)) %>%
+        ungroup() %>% arrange(Date) %>% filter(year(Date) > 2019)
+      
+      df2 <- df2 %>% group_by(Date) %>% summarise(Oil = as.integer(sum(Oil)/1000), Gas = as.integer(sum(Gas)/1000), NGL = as.integer(sum(NGL)/1000),
+                                                  SalesGas = as.integer(sum(SalesGas)/1000), netOil = as.integer(sum(NetOil)/1000),
+                                                  netGas = as.integer(sum(NetGas)/1000), netNGL = as.integer(sum(NetNGL)/1000),
+                                                  OilRevenue = as.integer(sum(OilRevenue)/1000),
+                                                  GasRevenue = as.integer(sum(GasRevenue)/1000), NGLRevenue = as.integer(sum(NGLRevenue)/1000),
+                                                  Revenue = as.integer(sum(Revenue)/1000), expense = as.integer(sum(expense)/1000), tax = as.integer(sum(tax)/1000),
+                                                  NOCF = as.integer(sum(NOCF)/1000), capex = as.integer(sum(capex)/1000), FCF = as.integer(sum(FCF)/1000)) %>%
+        ungroup() %>% arrange(Date) %>% filter(year(Date) > 2019)
+      df1 <- rbind(df1, df2)
+      names(df1) <- c('Date', 'Oil, mbbls', 'Gas, mmcf', 'NGL, mbbls',
+                      'Sales Gas, mmcf', 'Net Oil, mbbls', 'Net Gas, mmcf', 'Net NGL, mbbls',
+                      'Oil Revenue, $000s', 'Gas Revenue, $000s',
+                      'NGL Revenue, $000s', 'Total Revenue, $000s', 'Expenses, $000s', 'Taxes, $000s',
+                      'NOCF, $000s', 'Capex, $000s', 'Free Cash Flow, $000s')
+      df1 <- df1 %>% group_by(Date) %>% summarise_all(sum) %>% ungroup() %>% arrange(Date)
+      df1$Date <- as.Date(df1$Date)
+      
+      DT::datatable(df1, rownames = FALSE,
+                    extensions = c('Buttons', 'Scroller'),
+                    options = list(
+                      dom = 'Bfrtip',
+                      scrollX = TRUE,
+                      scrollY = FALSE,
+                      deferRender = TRUE,
+                      paging = FALSE,
+                      searching = FALSE,
+                      buttons = c(I('colvis'),'copy', 'csv', 'excel', 'pdf', 'print')
+                    ))
+    }
+  })
   # 
   output$pdpTable <- DT::renderDataTable({
     if(is.null(values$pdpFcst)){
@@ -2847,6 +2918,44 @@ server <- function(input, output, session) {
                     ))
     }
   })
+  
+  output$pdpMonthly <- DT::renderDataTable({
+    if(is.null(values$pdpFcst)){
+      NULL
+    } else {
+      df1 <- values$pdpFcst
+      
+      
+      df1$Year <- year(df1$Date)
+      
+      df1 <- df1 %>% group_by(Date) %>% summarise(Oil = as.integer(sum(Oil)/1000), Gas = as.integer(sum(Gas)/1000), NGL = as.integer(sum(NGL)/1000),
+                                                  SalesGas = as.integer(sum(SalesGas)/1000), netOil = as.integer(sum(netOil)/1000),
+                                                  netGas = as.integer(sum(netGas)/1000), netNGL = as.integer(sum(netNGL)/1000),
+                                                  OilRevenue = dollar(as.integer(sum(OilRevenue)/1000)),
+                                                  GasRevenue = dollar(as.integer(sum(GasRevenue)/1000)), NGLRevenue = dollar(as.integer(sum(NGLRevenue)/1000)),
+                                                  Revenue = dollar(as.integer(sum(Revenue)/1000)), expense = dollar(as.integer(sum(expense)/1000)), tax = dollar(as.integer(sum(tax)/1000)),
+                                                  NOCF = dollar(as.integer(sum(NOCF)/1000)), capex = dollar(as.integer(sum(capex)/1000)), FCF = dollar(as.integer(sum(FCF)/1000))) %>%
+        ungroup() %>% arrange(Date) %>% filter(year(Date) > 2019)
+      
+      names(df1) <- c('Date', 'Oil, mbbls', 'Gas, mmcf', 'NGL, mbbls',
+                      'Sales Gas, mmcf', 'Net Oil, mbbls', 'Net Gas, mmcf', 'Net NGL, mbbls',
+                      'Oil Revenue, $000s', 'Gas Revenue, $000s',
+                      'NGL Revenue, $000s', 'Total Revenue, $000s', 'Expenses, $000s', 'Taxes, $000s',
+                      'NOCF, $000s', 'Capex, $000s', 'Free Cash Flow, $000s')
+      df1$Date <- as.Date(df1$Date)
+      DT::datatable(df1, rownames = FALSE,
+                    extensions = c('Buttons', 'Scroller'),
+                    options = list(
+                      dom = 'Bfrtip',
+                      scrollX = TRUE,
+                      scrollY = FALSE,
+                      deferRender = TRUE,
+                      paging = FALSE,
+                      searching = FALSE,
+                      buttons = c(I('colvis'),'copy', 'csv', 'excel', 'pdf', 'print')
+                    ))
+    }
+  })
   # 
   output$devTable <- DT::renderDataTable({
     if(is.null(values$cfSummary)){
@@ -2872,6 +2981,44 @@ server <- function(input, output, session) {
                       'NGL Revenue, $000s', 'Total Revenue, $000s', 'Expenses, $000s', 'Taxes, $000s',
                       'NOCF, $000s', 'Capex, $000s', 'Free Cash Flow, $000s')
 
+      DT::datatable(df1, rownames = FALSE,
+                    extensions = c('Buttons', 'Scroller'),
+                    options = list(
+                      dom = 'Bfrtip',
+                      scrollX = TRUE,
+                      scrollY = FALSE,
+                      deferRender = TRUE,
+                      paging = FALSE,
+                      searching = FALSE,
+                      buttons = c(I('colvis'),'copy', 'csv', 'excel', 'pdf', 'print')
+                    ))
+    }
+  })
+  
+  output$devMonthly <- DT::renderDataTable({
+    if(is.null(values$cfSummary)){
+      NULL
+    } else {
+      df1 <- values$cfSummary
+      
+      
+      df1$Year <- year(df1$Date)
+      
+      df1 <- df1 %>% group_by(Date) %>% summarise(Oil = as.integer(sum(Oil)/1000), Gas = as.integer(sum(Gas)/1000), NGL = as.integer(sum(NGL)/1000),
+                                                  SalesGas = as.integer(sum(SalesGas)/1000), netOil = as.integer(sum(NetOil)/1000),
+                                                  netGas = as.integer(sum(NetGas)/1000), netNGL = as.integer(sum(NetNGL)/1000),
+                                                  OilRevenue = dollar(as.integer(sum(OilRevenue)/1000)),
+                                                  GasRevenue = dollar(as.integer(sum(GasRevenue)/1000)), NGLRevenue = dollar(as.integer(sum(NGLRevenue)/1000)),
+                                                  Revenue = dollar(as.integer(sum(Revenue)/1000)), expense = dollar(as.integer(sum(expense)/1000)), tax = dollar(as.integer(sum(tax)/1000)),
+                                                  NOCF = dollar(as.integer(sum(NOCF)/1000)), capex = dollar(as.integer(sum(capex)/1000)), FCF = dollar(as.integer(sum(FCF)/1000))) %>%
+        ungroup() %>% arrange(Date) %>% filter(year(Date) > 2019)
+      
+      names(df1) <- c('Date', 'Oil, mbbls', 'Gas, mmcf', 'NGL, mbbls',
+                      'Sales Gas, mmcf', 'Net Oil, mbbls', 'Net Gas, mmcf', 'Net NGL, mbbls',
+                      'Oil Revenue, $000s', 'Gas Revenue, $000s',
+                      'NGL Revenue, $000s', 'Total Revenue, $000s', 'Expenses, $000s', 'Taxes, $000s',
+                      'NOCF, $000s', 'Capex, $000s', 'Free Cash Flow, $000s')
+      df1$Date <- as.Date(df1$Date)
       DT::datatable(df1, rownames = FALSE,
                     extensions = c('Buttons', 'Scroller'),
                     options = list(
