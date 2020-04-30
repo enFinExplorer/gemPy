@@ -5149,8 +5149,8 @@ server <- function(input, output, session) {
         
       } else if(input$showSubplays == 'No' & input$showWells == 'Yes' & input$showLeases == 'Yes'){
         values$map1 %>%
-          addPolygons(data = df1()$geom, color = 'green') %>%
-          addCircles(lng = leases1()$long, lat = leases1()$lat, color = 'yellow', radius = 804)
+          addCircles(lng = leases1()$long, lat = leases1()$lat, color = 'yellow', radius = 804)%>%
+          addPolygons(data = df1()$geom, color = 'green') 
         
       } else if(input$showSubplays == 'Yes' & input$showWells == 'No' & input$showLeases == 'No'){
         values$map1 %>%
@@ -5165,9 +5165,9 @@ server <- function(input, output, session) {
           addPolygons(data = df1()$geom, color = 'green')
       } else {
         values$map1 %>%
-          addPolygons(data = subPlays1()$geoms) %>%
-          addPolygons(data = df1()$geom, color = 'green') %>%
-          addCircles(lng = leases1()$long, lat = leases1()$lat, color = 'yellow', radius = 804)
+          addPolygons(data = subPlays1()$geoms)%>%
+          addCircles(lng = leases1()$long, lat = leases1()$lat, color = 'yellow', radius = 804) %>%
+          addPolygons(data = df1()$geom, color = 'green') 
       }
     }
   })
