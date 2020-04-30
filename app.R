@@ -30,6 +30,8 @@ library(rgdal)
 library(leaflet)
 library(leaflet.extras)
 library(purrr)
+library(sf)
+library(rgeos)
 
 options(shiny.maxRequestSize=30*1024^2)
 options(stringsAsFactors = FALSE)
@@ -5095,6 +5097,8 @@ server <- function(input, output, session) {
       me <- countyData
       me <- me[me@data$STATEFP %in% state1,]
       
+      me1 <- sf::st_as_sf(me)
+      me1$geom <- sf::st_centroid(me1$geometry)
       #print(head(subPlays1()))
       
       #values$me <- me
@@ -5104,7 +5108,9 @@ server <- function(input, output, session) {
             data =me, 
             weight = 1,
             color = "black",
-            fill = NA) 
+            fill = NA)  %>%
+          addLabelOnlyMarkers(data = me1$geom, label = as.character(me1$NAME), 
+                              labelOptions = labelOptions(noHide = T, direction = 'top', textOnly = T))
       
       
     }
