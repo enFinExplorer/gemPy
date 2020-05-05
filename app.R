@@ -3643,7 +3643,8 @@ server <- function(input, output, session) {
   })
   
   output$offsets_plot <- renderHighchart({
-    df1 <- df2() %>% filter(subPlay %in% input$subPlay1)
+    #df1 <- df2() %>% filter(subPlay %in% input$subPlay1)
+    df1 <- leases() %>% filter(operator %in% input$operator1) %>% filter(subPlay %in% input$subPlay1)
     leases1 <- leases() %>%# filter(subPlay %in% input$subPlay) %>% 
       filter(possLocation %in% df1$possLocation) %>% filter(!duplicated(paste0(operator, oneSecLocation))) %>% 
       filter(!operator %in% input$operator1) %>%
