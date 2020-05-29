@@ -1,15 +1,29 @@
 library(shiny)
 library(shinydashboard)
 library(shinydashboardPlus)
+library(shinyWidgets)
 library(quantmod)
 library(dygraphs)
 library(dashboardthemes)
 library(DT)
 library(shinyjs)
 library(tidyverse)
+library(tidyquant)
+library(billboarder)
+#library(tuichartr)
+library(stringr)
+library(glue)
 
 options(stringsAsFactors = FALSE)
-stockList <- readRDS('./data/stockList.rds') %>% filter(symbol %in% names(readRDS('./data/xbrlData.rds')))
+
+stockListX <- rbind(tidyquant::tq_exchange('AMEX'),tidyquant::tq_exchange('NASDAQ'),tidyquant::tq_exchange('NYSE')) %>%
+  filter(!duplicated(symbol)) %>% filter(!is.na(sector)) %>% filter(!is.na(industry)) %>% filter(!is.na(market.cap))
+
+#print(head(stockListX))
+stockList <- stockListX %>% filter(symbol %in% readRDS('./data/labelTicker.rds'))
+#print(head(stockList))
+cols <- c('#00a4e3', '#adafb2', '#a31c37', '#d26400', '#eaa814', '#5c1848', '#786592', '#ff4e50', '#027971', '#008542', '#5c6d00','#0D1540', '#06357a' )
+
 
 theme_blue_gradient <- shinyDashboardThemeDIY(
   
@@ -119,12 +133,19 @@ theme_blue_gradient <- shinyDashboardThemeDIY(
   ui = dashboardPagePlus(
     
     header = dashboardHeaderPlus(
-      title = 'E-N-Fin Explorer',
+      title = 'XBRL-Data',
       enable_rightsidebar = FALSE,
       left_menu = tagList(
-      selectizeInput('ticker', 'Company', 
-                     choices = sort(unique(stockList$company)),
-                     selected = 'Apache Corporation', multiple=FALSE)
+        pickerInput(
+          inputId = "ticker",
+          label = "Company", 
+          choices = sort(unique(stockList$company)),
+          options = list(
+            `live-search` = TRUE)
+        )
+      # selectizeInput('ticker', 'Company', 
+      #                choices = sort(unique(stockList$company)),
+      #                selected = 'Apache Corporation', multiple=FALSE)
       )
     ),
     sidebar = dashboardSidebar(
@@ -136,7 +157,8 @@ theme_blue_gradient <- shinyDashboardThemeDIY(
       sidebarMenu(
         id = 'tabs',
         menuItem("Dashboard", tabName = "dashboard", icon = icon("dollar-sign")),
-        menuItem("About", tabName = "packages", icon = icon("gears"))
+        menuItem("Graphs", tabName = "graphs", icon = icon("chart-pie")),
+        menuItem("About", tabName = "packages", icon = icon("info"))
       )
       
       
@@ -165,19 +187,21 @@ theme_blue_gradient <- shinyDashboardThemeDIY(
           fluidRow(
             column(width = 12,
                    boxPlus(
-                     title = 'Bulk Financial Download - By Company',
+                     title = 'Bulk Financial Download - All Filings (Selected Company)',
                      closable = FALSE,
                      width = 12,
                      status = "info",
                      solidHeader = FALSE,
                      collapsible = TRUE,
                      enable_dropdown = FALSE,
+                     h6('Only one download allowed per session.  Simply refresh the app if another is desired.'),
                      fluidRow(
                        column(width = 3,
-                     actionButton("Calculate", 
-                                  label = ui <- fluidPage(
-                                    tags$script(src = "https://www.paypalobjects.com/api/checkout.js "),
-                                    tags$script("paypal.Button.render({
+                              div(class="span6", align="center", #`data-display` = TRUE,
+                                  div(tags$script(src = "https://www.paypalobjects.com/api/checkout.js "),
+                                      #tags$script('<a id="Calculate">'),
+                                      tags$a(id = 'Calculate',
+                                      tags$script("paypal.Button.render({
                                     // Configure environment
                                     env: 'sandbox',
                                     client: {
@@ -207,19 +231,26 @@ theme_blue_gradient <- shinyDashboardThemeDIY(
                                     return actions.payment.execute()
                                     .then(function () {
                                     // Show a confirmation message to the buyer
-                                    window.alert('Thank you for your purchase!');
+                                    //window.alert('Thank you for your purchase!');
+                                    var btn = document.createElement('BUTTON');   // Create a <button> element
+                                    btn.innerHTML = 'Collect Data';                   // Insert text
+                                    btn.className = 'btn btn-default shiny-download-link shiny-bound-output';
+                                    btn.id = 'downloadData';
+                                    btn.target = '_blank';
+                                    document.getElementById('calculate').appendChild(btn);               // Append <button> to <body>
                                     });
                                     }
-                                    }, '#Calculate');"),
-                                    tags$div(id = "Calculate")))
+                                    }, '#calculate')")),
+                                      
+                                      tags$div(id = "calculate")))
                      ),
-                     column(
-                       width =3,
-                     hidden(div(
-                       id='actions',
-                     downloadButton("downloadData", "Download")
-                     ))
-                     )
+                      column(
+                        width =3,
+                      hidden(div(
+                        id='actions',
+                      downloadButton("downloadData1", "Download")
+                      ))
+                      )
                      )
                    )
                    )
@@ -258,7 +289,84 @@ theme_blue_gradient <- shinyDashboardThemeDIY(
                             )
                    )
                    )
+                   )
             )
+        ),
+        tabItem(
+          tabName = 'graphs',
+          fluidRow(
+            column(width = 6,
+                   boxPlus(
+                     title = "Industry Market Cap", 
+                     closable = FALSE, 
+                     width = 12,
+                     status = "info", 
+                     solidHeader = FALSE, 
+                     collapsible = TRUE,
+                     enable_dropdown = FALSE,
+                     h6('Exchanges: AMEX, NYSE, NYMEX'),
+                     billboarder::billboarderOutput('mktCap')
+                   )
+            ),
+            column(width =6,
+                   boxPlus(
+                     title = "Market Cap Comparables", 
+                     closable = FALSE, 
+                     width = 12,
+                     status = "info", 
+                     solidHeader = FALSE, 
+                     collapsible = TRUE,
+                     enable_dropdown = FALSE,
+                     billboarderOutput('closest')
+                   )
+            )
+          ),
+          
+          fluidRow(
+            column(width = 12,
+                   boxPlus(
+                     title = "Current Assets/Liabilities", 
+                     closable = FALSE, 
+                     width = 12,
+                     status = "info", 
+                     solidHeader = FALSE, 
+                     collapsible = TRUE,
+                     enable_dropdown = FALSE,
+                     billboarderOutput('currents')
+                   )
+            )
+
+          ),
+          
+          fluidRow(
+            column(width = 12,
+                   boxPlus(
+                     title = "Debt", 
+                     closable = FALSE, 
+                     width = 12,
+                     status = "info", 
+                     solidHeader = FALSE, 
+                     collapsible = TRUE,
+                     enable_dropdown = FALSE,
+                     billboarderOutput('debt')
+                   )
+            )
+            
+          ),
+          fluidRow(
+            column(width = 12,
+                   boxPlus(
+                     title = "Annual Cash Flow Summary", 
+                     closable = FALSE, 
+                     width = 12,
+                     status = "info", 
+                     solidHeader = FALSE, 
+                     collapsible = TRUE,
+                     enable_dropdown = FALSE,
+                     billboarderOutput('cf')
+                   )
+            )
+            
           )
         ),
         tabItem(
@@ -279,14 +387,14 @@ theme_blue_gradient <- shinyDashboardThemeDIY(
                 description = ""
               ),
               userListItem(
-                src = "https://d33wubrfki0l68.cloudfront.net/071952491ec4a6a532a3f70ecfa2507af4d341f9/c167c/images/hex-dplyr.png", 
+                src = "https://user-images.githubusercontent.com/5993637/39728796-935fde9e-520d-11e8-868f-85d7a132249c.png", 
                 user_name = "Tidyverse", 
                 description = ""
               ),
               userListItem(
                 src = "shinyjs.png", 
                 user_name = "shinyjs", 
-                description = "Dean Attali"
+                description = "Author: Dean Attali"
               ),
               userListItem(
                 src = "shinydbplus.jpg", 
@@ -296,12 +404,12 @@ theme_blue_gradient <- shinyDashboardThemeDIY(
               userListItem(
                 src = "quantmod.png", 
                 user_name = "quantmod", 
-                description = "Jeffrey A. Ryan"
+                description = "Author: Jeffrey A. Ryan"
               ),
               userListItem(
                 src = "dbThems.png", 
                 user_name = "Dashboard Themes", 
-                description = "nik01010"
+                description = "Author: nik01010"
               ),
               userListItem(
                 src = "dygraphs.png", 
@@ -312,6 +420,16 @@ theme_blue_gradient <- shinyDashboardThemeDIY(
                 src = "dt.png", 
                 user_name = "DT", 
                 description = ""
+              ),
+              userListItem(
+                src = "tq.png", 
+                user_name = "TidyQuant", 
+                description = ""
+              ),
+              userListItem(
+                src = "billboard.png", 
+                user_name = "Billboarder", 
+                description = "Author: Fanny Meyer"
               )
             )
           )
@@ -320,35 +438,37 @@ theme_blue_gradient <- shinyDashboardThemeDIY(
     ),
     rightsidebar = rightSidebar(),
     footer = dashboardFooter(
-      left_text = "E-N-Fin Explorer",
+      left_text = "XBRL-Data",
       right_text = "2020"
     ),
-    title = "EnFinExplorer"
+    title = "XBRL-Data"
   )
   
   server = function(input, output, session) { 
     values <- reactiveValues()
-    shinyjs::show('actions')
+    #shinyjs::show('actions')
     stockInfo <- reactive(
       (stockList %>% filter(company%in% input$ticker))
     )
-    observe(print(session$token))
-    #observeEvent(input$Calculate, {
-    #  print(input$Calculate == 0)
-    #})
     
-    #observe(print(input$Calculate))
-    observeEvent(input$Calculate, {
-      shinyjs::hide('Calculate')
-      
-      shinyjs::show('actions')
-    })
+    comps <- reactive(stockListX %>% 
+                        filter(sector %in% stockInfo()$sector) %>%
+                        filter(industry %in% stockInfo()$industry))
     
-    observeEvent(input$ticker, {
-      
-      shinyjs::hide('actions')
-      shinyjs::show('Calculate')
-    })
+
+    
+     observeEvent(input$ticker, {
+       
+       shinyjs::hide('downloadData')
+       shinyjs::hide('actions')
+       
+    #   shinyjs::show('Calculate')
+     })
+     
+     observeEvent(input$downloadData1, {
+       shinyjs::hide('downloadData')
+       
+     })
     
     observe({
       if(is.null(input$ticker)||input$ticker == ''){
@@ -356,6 +476,7 @@ theme_blue_gradient <- shinyDashboardThemeDIY(
       } else {
         stock <- NULL
         rm(stock)
+        #print(head(comps()))
         #ticker <- input$operator
         ticker <- stockInfo()$symbol
         #print(ticker)
@@ -381,7 +502,12 @@ theme_blue_gradient <- shinyDashboardThemeDIY(
       
     })
     
-    tables <- reactive(readRDS('./data/xbrlData.rds')[[stockInfo()$symbol]] %>% mutate(Period = replace(Period, is.na(Period), 0)))
+    tables <- reactive({
+      txt1 <- glue::glue('./data/{stockInfo()$symbol}.rds')
+      readRDS(txt1) %>% 
+        #filter(ticker %in% stockInfo()$symbol) %>%
+        mutate(Period = replace(Period, is.na(Period), 0))
+      })
     
     observe(updateSelectizeInput(session, 'period', choices = unique(tables()$PERIOD)))
     observe(updateSelectizeInput(session, 'type', choices = unique((tables() %>% filter(PERIOD %in% input$period))$Type)))
@@ -398,7 +524,8 @@ theme_blue_gradient <- shinyDashboardThemeDIY(
     tables1 <- reactive(tables() %>% filter(PERIOD %in% input$period) %>%
                           filter(Type %in% input$type) %>%
                           filter(Table %in% input$table) %>% filter(endDate %in% input$endDate) %>%
-                          filter(Period %in% input$duration))
+                          filter(Period %in% input$duration) %>%
+                          mutate(Label = replace(Label, !is.na(arcrole), paste0('<b>',Label[!is.na(arcrole)],'</b>'))))
     
 
   
@@ -407,27 +534,27 @@ theme_blue_gradient <- shinyDashboardThemeDIY(
        is.null(input$period)||input$period == ''||
        is.null(input$table)||input$table == ''||
        is.null(input$type)||input$type == ''||
-       is.null(input$endDate)||input$endDate == ''){
+       is.null(input$endDate)||input$endDate == ''||
+       is.null(tables1())||nrow(tables1()) == 0){
       NULL
     } else {
       DT::datatable(tables1() %>% arrange(Order) %>% select(Order, Label, Value = fact, Units) %>%
-                      mutate(Order = seq(1, n(), 1)), rownames = FALSE,
-                    extensions = c('Buttons', 'Scroller'), 
+                      mutate(Order = seq(1, n(), 1)), rownames = FALSE, escape=FALSE,
+                    extensions = c('Scroller'), 
                     options = list(
                       dom = 'Bfrtip',
                       scrollX = TRUE,
                       scrollY = TRUE,
                       deferRender = TRUE,
                       paging = FALSE,
-                      searching = FALSE,
-                      buttons = c('copy', 'csv', 'excel')
+                      searching = FALSE
                     ))
     }
     
   })
   
   
-  output$downloadData <- downloadHandler(
+  output$downloadData1 <- downloadHandler(
     filename = function() {
       paste(stockInfo()$symbol, "financials.csv", sep = "")
     },
@@ -436,7 +563,188 @@ theme_blue_gradient <- shinyDashboardThemeDIY(
     }
   )
   
+  onclick('downloadData', shinyjs::show('actions'))
+  onclick('calculate', shinyjs::hide('downloadData'))
+  onclick('calculate', reset('downloadData'))
+  onclick('downloadData1', shinyjs::hide('calculate'))
+  
+  output$mktCap <- billboarder::renderBillboarder({
+    df <- comps() %>% select(company, market.cap) %>% 
+      mutate(end = str_sub(market.cap, -1, -1),
+             market.cap = as.numeric(str_sub(market.cap, 2, -2))) %>%
+      mutate(market.cap = replace(market.cap, end == 'B', market.cap[end == 'B']*1000000000),
+             market.cap = replace(market.cap, end == 'M', market.cap[end == 'M']*1000000)) %>%
+      subset(select = -c(end)) %>% arrange(desc(market.cap))
+    
+    billboarder() %>%
+      bb_piechart(data = df, bbaes(company, market.cap))%>%
+      bb_color(palette = cols) %>%
+  bb_labs(title = paste0(comps()$industry[1], ' Market Cap: $', round(sum(df$market.cap, na.rm=TRUE)/1000000000,2), ' Bn'),
+          caption = "Data source: TidyQuant/State Street Global Advisors")%>%
+      bb_legend(show = FALSE)
+  }
+    
+  )
+  
+  output$closest <- renderBillboarder({
+    df <- comps() %>% select(symbol, market.cap) %>%
+      mutate(end = str_sub(market.cap, -1, -1),
+             market.cap = as.numeric(str_sub(market.cap, 2, -2))) %>%
+      mutate(market.cap = replace(market.cap, end == 'B', market.cap[end == 'B']*1000000000),
+             market.cap = replace(market.cap, end == 'M', market.cap[end == 'M']*1000000)) %>%
+      subset(select = -c(end)) %>% arrange(desc(market.cap))
+    #print(head(df))
+    count1 <- which(df$symbol == stockInfo()$symbol)
+    if(count1 <= 3){
+      df <- head(df, 7)
+    } else if((nrow(df)-count1) <= 2){
+      df <- tail(df, 7)
+    } else {
+      df <- df[(count1-3):(count1+3),]
+    }
+    df <- df %>% mutate(market.cap = round(market.cap/1000000, 2))
+    txt1 <- stockInfo()$symbol
 
+    # tuichart("column") %>% 
+    #   add_data(df, aes(x = symbol, y = market.cap)) %>% 
+    #   #tui_chart(title = "Comparable Companies by Market Cap") %>% 
+    #   tui_yAxis(title = "US$Millions") %>% 
+    #   tui_xAxis(title = "Data source: TidyQuant/State Street Global Advisors") %>% 
+    #   tui_legend(visible = FALSE) %>% 
+    #   tui_series(showLabel = TRUE)%>%
+    #   tui_yAxis(
+    #     max = max(df$market.cap*1.1) # y max value
+    #   )
+    
+    billboarder() %>%
+      bb_barchart(data = df, bbaes(x = symbol, y = market.cap)) %>%
+      bb_y_grid(show = TRUE) %>%
+      bb_y_axis(max = max(df$market.cap)*1.1,
+                tick = list(format = suffix("$Ms")),
+                label = list(text = "Market Cap, US$Millions", position = "outer-top")) %>% 
+      bb_legend(show = FALSE) %>% 
+      bb_labs(caption = "Data source: TidyQuant/State Street Global Advisors")
+  }
+
+  )
+  
+  output$currents <- renderBillboarder({
+    cR <- tables() %>% filter(grepl('us-gaap_AssetsCurrent', Element)|grepl('us-gaap_LiabilitiesCurrent', Element)) %>%
+      filter(!duplicated(paste0(fact, endDate, Element))) %>% 
+      mutate(quarter = as.numeric(substr(PERIOD, 2, 2))*3, year = as.numeric(substr(PERIOD, 3, 7)) ) %>%
+      mutate(date = as.POSIXct(paste0(quarter, '/01/', year), format = '%m/%d/%Y')) %>%
+      group_by(Element, endDate) %>% filter(date == min(date)) %>%ungroup() %>%
+      group_by(Element, endDate) %>% summarise(fact = mean(fact)) %>% arrange(Element, endDate) %>%
+      mutate(fact = round(fact/1000000, 0)) %>% mutate(endDate = as.POSIXct(endDate, format = '%Y-%m-%d')) %>%
+      mutate(endDate = as.Date(endDate))
+    
+    billboarder(data = cR) %>%
+      bb_barchart(
+        mapping = bbaes(x = endDate, y = fact, group = Element)
+      ) %>%
+      bb_color(palette = cols) %>%
+      bb_y_grid(show = TRUE) %>%
+      bb_y_axis(
+        tick = list(format = suffix("$Ms")),
+        label = list(text = "Current Assets/Libs in $Millions", position = "outer-top")
+      ) %>%
+      bb_legend(show = FALSE) %>%
+      bb_labs(
+        title = "",
+        caption = "Data source: SEC XBRL"
+      )%>%
+      bb_x_axis(type = 'timeseries', label = list(rotate = 90), tick = list(format = "%Y-%m", fit = FALSE))
+  
+    
+  })
+  
+  output$debt <- renderBillboarder({
+    
+    
+      cR <- tables() %>% filter(Type == 'Statement') %>%
+        filter(grepl('us-gaap_LongTermDebtCurrent', Element)|
+                 grepl('us-gaap_LongTermDebtNoncurrent', Element)|
+                 Element == 'us-gaap_LongTermDebt'|
+                 Element == 'us-gaap_DebtCurrent'|
+                 Element == 'us-gaap-DebtNoncurrent'|
+                 Element == 'us-gaap_LongTermDebtAndCapitalLeaseObligations') %>%
+        filter(!duplicated(paste0(fact, endDate, Element))) %>% 
+        mutate(quarter = as.numeric(substr(PERIOD, 2, 2))*3, year = as.numeric(substr(PERIOD, 3, 7)) ) %>%
+        mutate(date = as.POSIXct(paste0(quarter, '/01/', year), format = '%m/%d/%Y')) %>%
+        group_by(Element, endDate) %>% filter(date == min(date)) %>%ungroup() %>%
+        group_by(Element, endDate) %>% summarise(fact = mean(fact)) %>% arrange(Element, endDate) %>%
+        mutate(fact = round(fact/1000000, 0)) %>% mutate(endDate = as.POSIXct(endDate, format = '%Y-%m-%d')) %>%
+        mutate(endDate = as.Date(endDate))
+      
+      billboarder(data = cR) %>%
+        bb_barchart(
+          mapping = bbaes(x = endDate, y = fact, group = Element), stacked = FALSE
+        ) %>%
+        bb_color(palette = cols) %>%
+        bb_y_grid(show = TRUE) %>%
+        bb_y_axis(
+          tick = list(format = suffix("$Ms")),
+          label = list(text = "Long Term Debt in $Millions", position = "outer-top")
+        ) %>%
+        bb_legend(show = TRUE) %>%
+        bb_labs(
+          title = "",
+          caption = "Data source: SEC XBRL"
+        )%>%
+        bb_x_axis(type = 'timeseries', label = list(rotate = 90), tick = list(format = "%Y-%m", fit = FALSE))
+   
+    # billboarder(data = cR) %>%
+    #   bb_barchart(
+    #     mapping = bbaes(x = endDate, y = fact, group = Element), stacked = TRUE
+    #   ) %>%
+    #   bb_color(palette = cols) %>%
+    #   bb_y_grid(show = TRUE) %>%
+    #   bb_y_axis(
+    #     tick = list(format = suffix("$Ms")),
+    #     label = list(text = "Long Term Debt in $Millions", position = "outer-top")
+    #   ) %>%
+    #   bb_legend(show = FALSE) %>%
+    #   bb_labs(
+    #     title = "",
+    #     caption = "Data source: SEC XBRL"
+    #   )%>%
+    #   bb_x_axis(type = 'timeseries', label = list(rotate = 90), tick = list(format = "%Y-%m", fit = FALSE))
+    # 
+    
+  })
+  
+  output$cf <- renderBillboarder({
+    df1 <- tables() %>% filter(Type == 'Statement') %>% filter(!is.na(arcrole)) %>%
+      filter(Period == 12) %>%
+      filter(grepl('us-gaap_NetCashProvidedByUsedInOperatingActivities', Element)|
+               grepl('us-gaap_NetCashProvidedByUsedInInvestingActivities', Element)|
+               grepl('us-gaap_NetCashProvidedByUsedInFinancingActivities', Element)) %>%
+      mutate(Element = replace(Element, grepl('Operating', Element), 'Operating Activities'),
+             Element = replace(Element, grepl('Investing', Element), 'Investing Activities'),
+             Element = replace(Element, grepl('Financing', Element), 'Financing Activities')) %>%
+      filter(!duplicated(paste0(fact, endDate, Element))) %>% 
+      mutate(quarter = as.numeric(substr(PERIOD, 2, 2))*3, year = as.numeric(substr(PERIOD, 3, 7)) ) %>%
+      mutate(date = as.POSIXct(paste0(quarter, '/01/', year), format = '%m/%d/%Y')) %>%
+      group_by(Element, endDate) %>% filter(date == min(date)) %>%ungroup() %>%
+      group_by(Element, endDate) %>% summarise(fact = mean(fact)) %>% arrange(Element, endDate) %>%
+      mutate(fact = round(fact/1000000, 0)) %>% filter(!duplicated(paste0(endDate, fact))) %>% arrange((Element), endDate) %>%
+      group_by(endDate) %>% mutate(fact1 = cumsum(fact)) %>% ungroup()
+    
+    billboarder() %>% 
+      bb_barchart(
+        data = df1, 
+        type = "area", 
+        mapping = bbaes(x = endDate, y = fact, group = Element), stacked = FALSE
+      ) %>% 
+      bb_legend() %>% 
+      bb_color(palette = cols) %>% 
+      bb_y_axis(padding = 0) %>% 
+      bb_labs(title = "",
+              y = "Cash Flow, In US$Millions",
+              caption = "Data source: SEC XBRL")%>%
+      bb_x_axis(type = 'timeseries', label = list(rotate = 90), tick = list(format = "%Y-%m", fit = FALSE))
+  })
+  
   
   }
 
