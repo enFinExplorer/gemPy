@@ -1,408 +1,445 @@
 library(shiny)
-library(gentelellaShiny)
-library(shinyWidgets)
-#library(noncensus)
-library(openintro)
-library(tidyverse)
-#library(rdrop2)
-library(dplyr)
-library(shinyjs)
-library(shinyBS)
-
+library(shinydashboard)
+library(shinydashboardPlus)
+library(quantmod)
+library(dygraphs)
+library(dashboardthemes)
 library(DT)
+library(shinyjs)
+library(tidyverse)
 
-options(shiny.maxRequestSize=30*1024^2)
-getmode <- function(v) {
-  uniqv <- unique(v)
-  uniqv <- uniqv[!is.na(uniqv)]
-  uniqv[which.max(tabulate(match(v, uniqv)))]
-}
+options(stringsAsFactors = FALSE)
+stockList <- readRDS('./data/stockList.rds') %>% filter(symbol %in% names(readRDS('./data/xbrlData.rds')))
 
-saveData <- function(data) {
- saveRDS(data, 'responses/basedata.rds')
-}
+theme_blue_gradient <- shinyDashboardThemeDIY(
+  
+  ### general
+  appFontFamily = "Arial"
+  ,appFontColor = "#OD1540"
+  ,primaryFontColor = "#OD1540"
+  ,infoFontColor = "rgb(0,0,0)"
+  ,successFontColor = "rgb(0,0,0)"
+  ,warningFontColor = "rgb(0,0,0)"
+  ,dangerFontColor = "rgb(0,0,0)"
+  ,bodyBackColor = "rgb(248,248,248)"
+  
+  ### header
+  ,logoBackColor = "#00a4e3"
+  
+  ,headerButtonBackColor = "#00a4e3"
+  ,headerButtonIconColor = "rgb(75,75,75)"
+  ,headerButtonBackColorHover = "rgb(210,210,210)"
+  ,headerButtonIconColorHover = "rgb(0,0,0)"
+  
+  ,headerBackColor = "#ffffff"
+  ,headerBoxShadowColor = "#00a4e3"
+  ,headerBoxShadowSize = "2px 2px 2px"
+  
+  ### sidebar
+  ,sidebarBackColor = "#ffffff"
+  ,sidebarPadding = 0
+  
+  ,sidebarMenuBackColor = "transparent"
+  ,sidebarMenuPadding = 0
+  ,sidebarMenuBorderRadius = 0
+  
+  ,sidebarShadowRadius = "3px 5px 5px"
+  ,sidebarShadowColor = "#aaaaaa"
+  
+  ,sidebarUserTextColor = "rgb(255,255,255)"
+  
+  ,sidebarSearchBackColor = "#00a4e3"
+  ,sidebarSearchIconColor = "rgb(153,153,153)"
+  ,sidebarSearchBorderColor = "#00a4e3"
+  
+  ,sidebarTabTextColor = "#OD1540"
+  ,sidebarTabTextSize = 13
+  ,sidebarTabBorderStyle = "none none solid none"
+  ,sidebarTabBorderColor = "#00a4e3"
+  ,sidebarTabBorderWidth = 1
+  
+  ,sidebarTabBackColorSelected = "#ffffff"
+  ,sidebarTabTextColorSelected = "#00a4e3"
+  ,sidebarTabRadiusSelected = "0px 20px 20px 0px"
+  
+  ,sidebarTabBackColorHover = "#00a4e3"
+  ,sidebarTabTextColorHover = "#ffffff"
+  ,sidebarTabBorderStyleHover = "none none solid none"
+  ,sidebarTabBorderColorHover = "rgb(75,126,151)"
+  ,sidebarTabBorderWidthHover = 1
+  ,sidebarTabRadiusHover = "0px 20px 20px 0px"
+  
+  ### boxes
+  ,boxBackColor = "rgb(255,255,255)"
+  ,boxBorderRadius = 5
+  ,boxShadowSize = "0px 1px 1px"
+  ,boxShadowColor = "#00a4e3"
+  ,boxTitleSize = 16
+  ,boxDefaultColor = "#00a4e3"
+  ,boxPrimaryColor = "#00a4e3"
+  ,boxInfoColor = "#00a4e3"
+  ,boxSuccessColor = "rgba(0,255,213,1)"
+  ,boxWarningColor = "rgb(244,156,104)"
+  ,boxDangerColor = "rgb(255,88,55)"
+  
+  ,tabBoxTabColor = "rgb(255,255,255)"
+  ,tabBoxTabTextSize = 14
+  ,tabBoxTabTextColor = "#OD1540"
+  ,tabBoxTabTextColorSelected = "rgb(0,0,0)"
+  ,tabBoxBackColor = "rgb(255,255,255)"
+  ,tabBoxHighlightColor = "rgba(44,222,235,1)"
+  ,tabBoxBorderRadius = 5
+  
+  ### inputs
+  ,buttonBackColor = "rgb(245,245,245)"
+  ,buttonTextColor = "#OD1540"
+  ,buttonBorderColor = "rgb(200,200,200)"
+  ,buttonBorderRadius = 5
+  
+  ,buttonBackColorHover = "rgb(235,235,235)"
+  ,buttonTextColorHover = "rgb(100,100,100)"
+  ,buttonBorderColorHover = "rgb(200,200,200)"
+  
+  ,textboxBackColor = "rgb(255,255,255)"
+  ,textboxBorderColor = "rgb(200,200,200)"
+  ,textboxBorderRadius = 5
+  ,textboxBackColorSelect = "rgb(245,245,245)"
+  ,textboxBorderColorSelect = "rgb(200,200,200)"
+  
+  ### tables
+  ,tableBackColor = "rgb(255,255,255)"
+  ,tableBorderColor = "rgb(240,240,240)"
+  ,tableBorderTopSize = 1
+  ,tableBorderRowSize = 1
+  
+)
 
-saveData1 <- function(data) {
- saveRDS(data, 'responses/basepdf.rds')
-}
 
-loadData <- function() {
-  data <- readRDS('responses/basedata.rds')
-  data
-}
 
-loadData1 <- function() {
- data <- readRDS('responses/basepdf.rds')
-  data
-}
-
-countyList <- readRDS('data/countyList.rds')
-#print(head(countyList))
-secData <- readRDS('data/xbrlData.rds')
-
-options(shiny.jquery.version=1)
-
-shinyApp(
-  ui = gentelellaPageCustom(
-    title = "AFE Leaks",
-    navbar = gentelellaNavbar(
+  ui = dashboardPagePlus(
     
+    header = dashboardHeaderPlus(
+      title = 'E-N-Fin Explorer',
+      enable_rightsidebar = FALSE,
+      left_menu = tagList(
+      selectizeInput('ticker', 'Company', 
+                     choices = sort(unique(stockList$company)),
+                     selected = 'Apache Corporation', multiple=FALSE)
+      )
     ),
-    sidebar = gentelellaSidebar(
-      site_title = shiny::HTML(paste(shiny::icon("gas-pump"),
-                                     "AFE Leaks")),
-      #uiOutput("profile"),
-      sidebarDate(),
+    sidebar = dashboardSidebar(
+      br(),
+      br(),
+      br(),
+      br(),
+      
       sidebarMenu(
-        sidebarItem(
-          "AFE Upload",
-          tabName = "tab1", 
-          icon = tags$i(class = "fas fa-share"), 
-          badgeName = "new",
-          badgeStatus = "danger"
-        ),
-        sidebarItem(
-          "AFE Viewer",
-          tabName = "tab2", 
-          icon = tags$i(class = "fas fa-archive")
-        ),
-        sidebarItem(
-          "SEC Filings",
-          tabName = "sec", 
-          icon = tags$i(class = "fas fa-dollar-sign")
-        )
+        id = 'tabs',
+        menuItem("Dashboard", tabName = "dashboard", icon = icon("dollar-sign")),
+        menuItem("About", tabName = "packages", icon = icon("gears"))
       )
+      
+      
     ),
-    body = gentelellaBody(
-      useShinyjs(),
+    body = dashboardBody(
+      theme_blue_gradient,
+      shinyjs::useShinyjs(),
+      # infoBoxes
       tabItems(
-        tabItem(
-          tabName = "tab1",
+        tabItem("dashboard",
           fluidRow(
-            column(
-              width = 4,
-              align = "center",
-              fileInput('file_input', 'Upload PDF', accept = c('.pdf')),
-              selectInput('state', 'State', choices = state2abbr(state.name)),
-              selectInput('county', 'County', choices = unique(countyList$county_name)),
-              textInput('operator', "Operator Name"),
-              textInput('API', label = "API Number"),
-              textOutput('apiDouble'),
-              textInput('well', label = "Well Name"),
-              dateInput('apiDate', label ='AFE Date'),
-              numericInput("preSpud", "Pre-Spud Capex, $", value = 0),
-              numericInput("drill", "Drill Cost, $", value = 0),
-              numericInput('complete', "Completion Cost, $", value = 0),
-              numericInput('facilities', 'Facilities Cost, $', value = 0),
-              numericInput('actual', 'Actual D&C+E, $', value = 0),
-              numericInput('lateral', 'Lateral Length, ft', value = 0),
-              bsButton('upload', 'Upload to Database', icon = icon('table'),
-                       size = 'small', style = 'primary')
-            ),
-            column(
-              width = 8,
-              align = "center",
-              uiOutput("pdfview")
+            column(width = 12,
+            boxPlus(
+              title = "Candlestick Chart", 
+              closable = FALSE, 
+              width = 12,
+              status = "info", 
+              solidHeader = FALSE, 
+              collapsible = TRUE,
+              enable_dropdown = FALSE,
+              dygraphs::dygraphOutput('stonks'),
+              h6('Source: Quantmod/Yahoo Finance')
             )
+          )
           ),
           fluidRow(
-            h6('Disclaimer:  All data is crowdsourced.  We do not correct the data.
-               We do not provide investment advice and any 
-               investment decisions based on this data is purely at the risk of the individual
-               or business using it.')
+            column(width = 12,
+                   boxPlus(
+                     title = 'Bulk Financial Download - By Company',
+                     closable = FALSE,
+                     width = 12,
+                     status = "info",
+                     solidHeader = FALSE,
+                     collapsible = TRUE,
+                     enable_dropdown = FALSE,
+                     fluidRow(
+                       column(width = 3,
+                     actionButton("Calculate", 
+                                  label = ui <- fluidPage(
+                                    tags$script(src = "https://www.paypalobjects.com/api/checkout.js "),
+                                    tags$script("paypal.Button.render({
+                                    // Configure environment
+                                    env: 'sandbox',
+                                    client: {
+                                    sandbox: 'AUzCJ8LZWpfr-5q8RbpAbzgbnviGF01LygUugclYSUENDcN2SeN8n_hRjq8B7nFaEor1z4yWOlcgtbd_',
+                                    production: 'demo_production_client_id'
+                                    },
+                                    // Customize button (optional)
+                                    locale: 'en_US',
+                                    style: {
+                                    size: 'small',
+                                    color: 'gold',
+                                    shape: 'pill',
+                                    },
+                                    // Set up a payment
+                                    payment: function (data, actions) {
+                                    return actions.payment.create({
+                                    transactions: [{
+                                    amount: {
+                                    total: '0.01',
+                                    currency: 'USD'
+                                    }
+                                    }]
+                                    });
+                                    },
+                                    // Execute the payment
+                                    onAuthorize: function (data, actions) {
+                                    return actions.payment.execute()
+                                    .then(function () {
+                                    // Show a confirmation message to the buyer
+                                    window.alert('Thank you for your purchase!');
+                                    });
+                                    }
+                                    }, '#Calculate');"),
+                                    tags$div(id = "Calculate")))
+                     ),
+                     column(
+                       width =3,
+                     hidden(div(
+                       id='actions',
+                     downloadButton("downloadData", "Download")
+                     ))
+                     )
+                     )
+                   )
+                   )
+          ),
+          fluidRow(
+            column(width = 12,
+                   boxPlus(
+                     title = "Financial Statement Data", 
+                     closable = FALSE, 
+                     width = 12,
+                     status = "info", 
+                     solidHeader = FALSE, 
+                     collapsible = TRUE,
+                     enable_dropdown = FALSE,
+                     fluidRow(
+                       column(width = 2,
+                        selectizeInput('period', 'Filing Period', choices = '')
+                        ),
+                       column(width = 2,
+                              selectizeInput('type', 'Statement Type', choices = '')
+                       ),
+                     column(width = 4,
+                          selectizeInput('table', 'Table', choices = '')  
+                     
+                      ),
+                     column(width = 2,
+                            selectizeInput('endDate', 'Date', choices = '')  
+                            ),
+                     column(width = 2,
+                            selectizeInput('duration', 'Months', choices = '')
+                            )
+                   ),
+                   fluidRow(
+                     column(width =12,
+                            DT::dataTableOutput('financials')
+                            )
+                   )
+                   )
+            )
           )
         ),
         tabItem(
-          tabName = "tab2",
-          fluidRow(
-            column(
-              4,
-              selectInput('state1', 'State', choices = state2abbr(state.name)),
-              selectInput('county1', 'County', choices = unique(countyList$county_name)),
-              selectInput('operator1', "Operator Name", choices = ''),
-              selectInput('well1', label = "Well Name", choices = ''),
-              selectInput('API1', label = "API Number", choices = ''),
-              textOutput('apiDate1'),
-              textOutput('preSpud1'),
-              textOutput('drill1'),
-              textOutput('complete1'),
-              textOutput('facilities1'),
-              textOutput('total1'),
-              textOutput('actual1'),
-              textOutput('lateral1')
-            ),
-            column(
-              width = 8,
-              align = "center",
-              uiOutput("pdfview2")
+          tabName = "packages",
+          box(
+            title = "Package List",
+            status = "primary",
+            width = NULL,
+            userList(
+              userListItem(
+                src = "https://www.rstudio.com/wp-content/uploads/2014/04/shiny.png", 
+                user_name = "Shiny", 
+                description = ""
+              ),
+              userListItem(
+                src = "shinydb.png", 
+                user_name = "Shiny Dashboard", 
+                description = ""
+              ),
+              userListItem(
+                src = "https://d33wubrfki0l68.cloudfront.net/071952491ec4a6a532a3f70ecfa2507af4d341f9/c167c/images/hex-dplyr.png", 
+                user_name = "Tidyverse", 
+                description = ""
+              ),
+              userListItem(
+                src = "shinyjs.png", 
+                user_name = "shinyjs", 
+                description = "Dean Attali"
+              ),
+              userListItem(
+                src = "shinydbplus.jpg", 
+                user_name = "Shiny Dashboard+", 
+                description = "Appsilon Data Science"
+              ),
+              userListItem(
+                src = "quantmod.png", 
+                user_name = "quantmod", 
+                description = "Jeffrey A. Ryan"
+              ),
+              userListItem(
+                src = "dbThems.png", 
+                user_name = "Dashboard Themes", 
+                description = "nik01010"
+              ),
+              userListItem(
+                src = "dygraphs.png", 
+                user_name = "dygraphs", 
+                description = ""
+              ),
+              userListItem(
+                src = "dt.png", 
+                user_name = "DT", 
+                description = ""
+              )
             )
-          ),
-          fluidRow(
-            h6('Disclaimer:  All data is crowdsourced.  We do not correct the data.
-               We do not provide investment advice and any 
-               investment decisions based on this data is purely at the risk of the individual
-               or business using it.')
           )
-        ),
-        tabItem(
-          tabName = 'sec',
-          selectInput('ticker', 'Stock Ticker', choices = names(secData)),
-          selectizeInput('period', 'Filing Period', choices = '', multiple = TRUE),
-          selectizeInput('table', 'Table', choices = '', multiple = TRUE),
-          
-          selectizeInput('months', 'Time Period', choices = '', multiple = FALSE),
-          DT::dataTableOutput('secFiling')
         )
       )
     ),
-    footer = gentelellaFooter(
-      leftText = 'Energy FinTwit',
-      rightText = '2020'
-    )
-  ),
-  server = function(input, output, session) {
-    
+    rightsidebar = rightSidebar(),
+    footer = dashboardFooter(
+      left_text = "E-N-Fin Explorer",
+      right_text = "2020"
+    ),
+    title = "EnFinExplorer"
+  )
+  
+  server = function(input, output, session) { 
     values <- reactiveValues()
-    
-    afeData <- loadData()
-    values$afeData <- afeData
-    #print(head(afeData))
-    afePDF <- loadData1()
-    values$afePDF <- loadData1()
-    afePDF1 <- reactive(
-      values$afePDF[[input$API1]]
+    shinyjs::show('actions')
+    stockInfo <- reactive(
+      (stockList %>% filter(company%in% input$ticker))
     )
+    observe(print(session$token))
+    #observeEvent(input$Calculate, {
+    #  print(input$Calculate == 0)
+    #})
     
-    #print(head(afePDF))
-    output$apiDouble <- renderText({
-      if(input$API %in% values$afeData$API){
-        shinyjs::disable('upload')
-        'Well is already in database'
-        
-      } 
+    #observe(print(input$Calculate))
+    observeEvent(input$Calculate, {
+      shinyjs::hide('Calculate')
+      
+      shinyjs::show('actions')
+    })
+    
+    observeEvent(input$ticker, {
+      
+      shinyjs::hide('actions')
+      shinyjs::show('Calculate')
     })
     
     observe({
-     
-      if(is.null(input$state)|is.null(input$county)|
-         is.null(input$operator)|is.null(input$well)|
-         is.null(input$API)|is.null(input$file_input)|
-         is.null(input$apiDate)|input$state == ''|
-         input$county == ''|input$operator == ''|
-         input$well == ''|input$API == ''){
-        shinyjs::disable('upload')
+      if(is.null(input$ticker)||input$ticker == ''){
+        values$stock <- NULL
       } else {
-        shinyjs::enable('upload')
+        stock <- NULL
+        rm(stock)
+        #ticker <- input$operator
+        ticker <- stockInfo()$symbol
+        #print(ticker)
+        stock <- getSymbols(ticker, src='yahoo', auto.assign = FALSE, setSymbolLookup('stock'))
+        names(stock) <- c('Open', 'High', 'Low', 'Close', 'Volume', 'Adjusted')
+        values$stock <- stock
       }
     })
     
-    observeEvent(values$afeData, {
-      updateSelectInput(session, 'state1', 'State', unique(values$afeData$State))
-      updateSelectInput(session, 'county1', 'County', unique(values$afeData$County))
-      updateSelectInput(session, 'operator1', 'Operator', unique(values$afeData$Operator))
-      updateSelectInput(session, 'well1', 'Well', unique(values$afeData$Well))
-      updateSelectInput(session, 'API1', 'API Number', unique(values$afeData$API))
-    })
-    
-   
-    observeEvent(input$state1, {
-      #req(input$state)
-      countyList1 <- countyList %>% filter(county_name %in% values$afeData$County) %>%
-        filter(state %in% input$state1)
-      #print(head(countyList1))
-      updateSelectInput(session, 'county1', label = 'County', choices = unique(countyList1$county_name))
-    })
-    # 
-    observeEvent(input$county1, {
-      afeData1 <- values$afeData %>% filter(State %in% input$state1) %>%
-        filter(County %in% input$county1)
 
-      updateSelectInput(session, 'operator1', label = 'Operator', unique(afeData1$Operator))
-      #updateSelectInput(session, 'well1', unique(afeData1$Well))
-      #updateSelectInput(session, 'AFE1', unique(afeData1$API))
-
-    })
-    # 
-    observeEvent(input$operator1, {
-      afeData1 <- values$afeData %>% filter(State %in% input$state1) %>%
-        filter(County %in% input$county1) %>% filter(Operator %in% input$operator1)
-
-      #updateSelectInput(session, 'operator1', unique(afeData1$Operator))
-      updateSelectInput(session, 'well1', 'Well', unique(afeData1$Well))
-      #updateSelectInput(session, 'AFE1', unique(afeData1$API))
-
-    })
-    # 
-    observeEvent(input$well1, {
-      afeData1 <- values$afeData %>% filter(State %in% input$state1) %>%
-        filter(County %in% input$county1) %>% filter(Operator %in% input$operator1) %>%
-        filter(Well %in% input$well1)
-
-      #updateSelectInput(session, 'operator1', unique(afeData1$Operator))
-      #updateSelectInput(session, 'well1', unique(afeData1$Well))
-      updateSelectInput(session, 'API1', 'API Number', unique(afeData1$API))
-
-    })
-    # 
     
-    output$apiDate1 <- renderText({
-      afeData1 <- values$afeData %>% filter(API %in% input$API1)
-      paste0('AFE Date: ', afeData1$Date)
-    })
-    
-    
-    
-    output$preSpud1 <- renderText({
-      afeData1 <- values$afeData %>% filter(API %in% input$API1)
-      paste0('Pre-Spud, $: ', afeData1$PreSpud)
-    })
-
-    output$drill1 <- renderText({
-      afeData1 <- values$afeData %>% filter(API %in% input$API1)
-      paste0('Drill, $: ', afeData1$Drill)
-    })
-    output$complete1 <- renderText({
-      afeData1 <- values$afeData %>% filter(API %in% input$API1)
-      paste0('Complete, $: ', afeData1$Complete)
-    })
-
-    output$facilities1 <- renderText({
-      afeData1 <- values$afeData %>% filter(API %in% input$API1)
-      paste0('Facilities, $: ', afeData1$Facilities)
-    })
-    output$total1 <- renderText({
-      afeData1 <- values$afeData %>% filter(API %in% input$API1)
-      paste0('Total Capex, $: ', afeData1$Total)
-    })
-    
-    output$actual1 <- renderText({
-      afeData1 <- values$afeData %>% filter(API %in% input$API1)
-      paste0('Actual D&C+E, $: ', afeData1$Actual)
-    })
-    
-    output$lateral1 <- renderText({
-      afeData1 <- values$afeData %>% filter(API %in% input$API1)
-      paste0('Lateral Length, ft: ', afeData1$Lateral)
-    })
-    
-    observeEvent(input$upload, {
-      shinyjs::disable('upload')
-      updateButton(session, 'upload', label = 'Uploading....')
-      df1 <- data.frame(State = input$state,
-                        County = input$county,
-                        Operator = input$operator,
-                        API = input$API,
-                        Well = input$well,
-                        PreSpud = input$preSpud,
-                        Complete = input$complete,
-                        Drill = input$drill,
-                        Facilities = input$facilities,
-                        Total = input$preSpud + input$complete + input$drill + input$facilities,
-                        Date = input$apiDate,
-                        Actual = input$actual,
-                        Lateral = input$lateral)
-      
-      values$afeData <- rbind(values$afeData, df1)
-      saveRDS(values$afeData, 'responses/basedata.rds')
-
-      afePDF1 <- list(values$test_file)
-      names(afePDF1) <- input$API
-      afeList <- append(values$afePDF, afePDF1)
-      values$afePDF <- afeList
-      saveRDS(values$afePDF, 'responses/basepdf.rds')
-      
-      #saveData(afeList)
-      shinyjs::enable('upload')
-      updateButton(session, 'upload', label = 'Upload to Database')
-    })
-    
-    observe({
-      #req(input$state)
-      countyList1 <- countyList %>% filter(state %in% input$state)
-      #print(head(countyList1))
-      updateSelectInput(session, 'county', label = 'County', choices = unique(countyList1$county_name))
-    })
-    
-    observe({
-      req(input$file_input)
-      test_file <- readBin(con=input$file_input$datapath,what = 'raw',n=input$file_input$size)
-      values$test_file <- test_file
-      writeBin(test_file,'www/myreport.pdf')
-    })
-    output$pdfview <- renderUI({
-      if(is.null(input$file_input)){
+    output$stonks <- dygraphs::renderDygraph({
+      #print(input$dateRange)
+      if(is.null(values$stock)){
         NULL
       } else {
-      tags$iframe(style="height:600px; width:100%", src="myreport.pdf")
+      #print(head(tables()))
+        dygraph(values$stock[,1:4]) %>%
+          dyCandlestick()%>%
+          dyAxis("y", label = "Share Price, US$") %>%
+          dyRangeSelector(height = 20)
       }
+      
     })
     
-    observe({
-      req(input$API1)
-      #print(head(afePDF))
-      test_file <- afePDF1() %>%
-        writeBin('www/myreport1.pdf')
-    })
-    output$pdfview2 <- renderUI({
-      if(is.null(input$API1)){
-        NULL
-      } else {
-        tags$iframe(style="height:600px; width:100%", src="myreport1.pdf")
-      }
-    })
+    tables <- reactive(readRDS('./data/xbrlData.rds')[[stockInfo()$symbol]] %>% mutate(Period = replace(Period, is.na(Period), 0)))
     
-    secData1 <- reactive(secData[[input$ticker]] %>% mutate(Table = toupper(Table)) %>% mutate(Period = replace(Period, is.na(Period), 0)))
+    observe(updateSelectizeInput(session, 'period', choices = unique(tables()$PERIOD)))
+    observe(updateSelectizeInput(session, 'type', choices = unique((tables() %>% filter(PERIOD %in% input$period))$Type)))
+    observe(updateSelectizeInput(session, 'table', choices = unique((tables() %>% filter(PERIOD %in% input$period) %>%
+                                                                    filter(Type %in% input$type) )$Table)))
+    observe(updateSelectizeInput(session, 'endDate', choices = unique((tables() %>% filter(PERIOD %in% input$period)%>%
+                                                                         filter(Type %in% input$type) %>%
+                                                                       filter(Table %in% input$table))$endDate)))
+    observe(updateSelectizeInput(session, 'duration', choices = unique((tables() %>% filter(PERIOD %in% input$period)%>%
+                                                                          filter(Type %in% input$type) %>%
+                                                                       filter(Table %in% input$table) %>%
+                                                                         filter(endDate %in% input$endDate))$Period)))
     
-    #secDataX <- reactive(secData1() %>% filter(PERIOD %in% input$period) %>% filter(Table %in% input$table))
+    tables1 <- reactive(tables() %>% filter(PERIOD %in% input$period) %>%
+                          filter(Type %in% input$type) %>%
+                          filter(Table %in% input$table) %>% filter(endDate %in% input$endDate) %>%
+                          filter(Period %in% input$duration))
     
-    observe(updateSelectizeInput(session, 'period', choices = sort(unique(secData1()$PERIOD))))
-    
-    observe(updateSelectizeInput(session, 'table', choices = sort(unique((secData1() %>% filter(PERIOD %in% input$period))$Table))))
-    
-    observe({
-      #print(head(secDataX()))
-      updateSelectizeInput(session, 'months', choices = as.character(sort(unique((secData1() %>% filter(Table %in% input$table) %>% filter(PERIOD %in% input$period))$Period))))
-      
-      })
-    
-    secData2 <- reactive(secData1() %>% filter(Table %in% input$table) %>% filter(PERIOD %in% input$period) %>% filter(as.character(Period) %in% input$months))
-    
-    output$secFiling <- DT::renderDataTable({
-      
-      #df1 <- secData2() %>% group_by(Element) %>% mutate(Label = getmode(Label)) %>% ungroup() %>%
-      #  mutate(count = 1, count = replace(count, lag(subPlay, n=1L) == subPlay, 0)) %>% 
-      #  mutate(count = cumsum(count)) %>% mutate(count1 = 0, count1 = replace(count1, lag(subPlay, n=1L)==subPlay, 0.1)) %>%
-      #  group_by(count) %>% mutate(count1 = cumsum(count1)) %>% ungroup() %>% mutate(count = count+count1) %>% mutate(Order = count) 
-      
-      df1 <- secData2() %>% group_by(Element) %>% mutate(Label = getmode(Label)) %>% ungroup() %>%
-        group_by(endDate, PERIOD) %>% mutate(count = 1, count = replace(count, lag(MainElement, n=1L) == MainElement, 0)) %>% 
-        ungroup() %>%  group_by(endDate, PERIOD) %>% 
-        mutate(count = cumsum(count), count1 = 0, count1 = replace(count1, lag(MainElement, n=1L)==MainElement, 0.1)) %>%
-        ungroup() %>% group_by(count, endDate, PERIOD) %>% mutate(count1 = cumsum(count1)) %>% ungroup() %>% mutate(count = count+count1) %>% mutate(Order = count) %>%
-        group_by(Element) %>% mutate(Order = mean(Order)) %>%
-        subset(select = -c(Table, Period, PERIOD, ticker, count, count1)) %>% distinct() %>%
-        group_by(Category, MainElement, Element, Label, Order, Units, endDate) %>% summarise(fact = mean(fact)) %>% ungroup() %>%
-        distinct() %>%
-        spread(endDate, fact)  %>% arrange(Order) %>% subset(select = -c(Order))
-      
-      DT::datatable(df1, rownames = FALSE,
-                    extensions = c('Buttons', 'Scroller'),
+
+  
+  output$financials <- DT::renderDataTable({
+    if(is.null(input$duration)||input$duration == ''||
+       is.null(input$period)||input$period == ''||
+       is.null(input$table)||input$table == ''||
+       is.null(input$type)||input$type == ''||
+       is.null(input$endDate)||input$endDate == ''){
+      NULL
+    } else {
+      DT::datatable(tables1() %>% arrange(Order) %>% select(Order, Label, Value = fact, Units) %>%
+                      mutate(Order = seq(1, n(), 1)), rownames = FALSE,
+                    extensions = c('Buttons', 'Scroller'), 
                     options = list(
                       dom = 'Bfrtip',
                       scrollX = TRUE,
-                      scrollY = FALSE,
+                      scrollY = TRUE,
                       deferRender = TRUE,
                       paging = FALSE,
                       searching = FALSE,
-                      buttons = c(I('colvis'),'copy', 'csv', 'excel', 'pdf', 'print'))
-                    ,
-                    caption = htmltools::tags$caption(
-                      style = 'caption-side: bottom; text-align: center;',
-                      'Table: ', htmltools::em('SEC Filings')),
-                    class = 'cell-border stripe')
+                      buttons = c('copy', 'csv', 'excel')
+                    ))
     }
-    )
+    
+  })
+  
+  
+  output$downloadData <- downloadHandler(
+    filename = function() {
+      paste(stockInfo()$symbol, "financials.csv", sep = "")
+    },
+    content = function(file) {
+      write.csv(tables(), file, row.names = FALSE)
+    }
+  )
+  
 
-
+  
   }
-)
+
+
+
+shinyApp(ui, server)
